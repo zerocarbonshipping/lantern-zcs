@@ -1,0 +1,46 @@
+# Example Lantern configuration for the bundled synthetic report.csv.
+# See docs/user-manual.md for the full configuration reference.
+
+# CSV layout (0-based row indices)
+[csv_layout]
+data_start_row = 5
+header_row     = 2
+subcategory_row = 3
+
+# Scenarios: keys must appear as substrings in the row-0 sample labels
+[scenarios]
+names = ["ambitious", "conservative"]
+
+[scenarios.colors]
+ambitious    = "#447a7a"
+conservative = "#68a4c2"
+
+[scenarios.titles]
+ambitious    = "Ambitious transition"
+conservative = "Conservative transition"
+
+# Metrics: CSV header (row 2) -> short key used in filenames
+[metrics.single]
+TotalEquivalentWTW = "emissions"
+Expenses           = "expenses"
+
+[[metrics.multi]]
+header = "ConsumedEnergy"
+key = "consumed_energy"
+grid_cols = 3
+
+# Weights for representative-pathway selection (keys = short keys above)
+[weights.single]
+emissions = 0.5
+expenses  = 0.2
+
+[weights.multi]
+consumed_energy = 0.3
+
+[quantiles]
+show_median = true
+q_low  = 5.0
+q_high = 95.0
+
+[output]
+dir = "output"

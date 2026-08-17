@@ -1,0 +1,70 @@
+# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+# SPDX-License-Identifier: Apache-2.0
+
+[build-system]
+requires = ["setuptools>=68.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lantern-zcs"
+version = "1.0.0"
+authors = [
+    { name = "Mathias Hintze", email = "mathias.hintze@zerocarbonshipping.com" },
+]
+maintainers = [
+    { name = "Frederik Winkel Lehn", email = "frederik.lehn@zerocarbonshipping.com" },
+]
+description = "Quantile plots and representative-pathway selection for Navigate scenario ensembles"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+
+dependencies = [
+    "pandas>=2.0",
+    "numpy>=1.23",
+    "plotly>=5.16",
+    "kaleido",
+    "tqdm>=4.60",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "flake8",
+    "flake8-bugbear",
+    "pep8-naming",
+    "isort",
+]
+
+[project.urls]
+Homepage = "https://www.zerocarbonshipping.com/"
+Repository = "https://github.com/zerocarbonshipping/lantern-zcs"
+
+[tool.setuptools.packages.find]
+include = ["lantern*"]
+exclude = ["tests*"]
+
+[project.scripts]
+lantern = "lantern.cli:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# make `from tests.conftest import ...` resolvable regardless of the
+# installer's editable-install strategy
+pythonpath = ["."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--strict-markers",
+    "--tb=short",
+]
+markers = [
+    "unit: Unit tests that don't require external resources",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 120
