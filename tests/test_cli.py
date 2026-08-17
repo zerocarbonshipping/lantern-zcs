@@ -39,6 +39,12 @@ class TestDiscoveryCommands:
         assert "ambitious" in generated
         assert "conservative" in generated
         assert "[weights.single]" in generated
+        # header detection must find the metric-header row (2), not the
+        # sample-label row (0)
+        assert "header_row = 2" in generated
+        assert 'TotalEquivalentWTW = "totalequivalentwtw"' in generated
+        assert 'header = "ConsumedEnergy"' in generated
+        assert "ambitious_sample_001" not in generated
 
 
 class TestFullRender:
