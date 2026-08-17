@@ -379,6 +379,12 @@ def _merge_into_defaults(raw: Dict[str, Any]) -> RootConfig:
     if "multi" in mt:
         multi_list: List[Dict[str, Any]] = []
         for item in mt["multi"]:
+            missing = [k for k in ("header", "key") if k not in item]
+            if missing:
+                raise ValueError(
+                    f"[[metrics.multi]] entry is missing required key(s) "
+                    f"{missing}: {item!r}")
+
             multi_list.append({
                 "header": str(item["header"]),
                 "key": str(item["key"]),

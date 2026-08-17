@@ -96,3 +96,18 @@ class TestModeOverrides:
 
         config.configure(toml, mode="quantiles")
         assert str(config.OUTPUT_DIR) == "base_out"
+
+
+@pytest.mark.unit
+class TestMultiMetricValidation:
+    def test_missing_header_raises_clear_error(self, tmp_path):
+        toml = tmp_path / "lantern.toml"
+        toml.write_text('[[metrics.multi]]\nkey = "energy"\ngrid_cols = 2\n')
+        with pytest.raises(ValueError, match="missing required key"):
+            config.configure(toml)
+
+    def test_missing_key_raises_clear_error(self, tmp_path):
+        toml = tmp_path / "lantern.toml"
+        toml.write_text('[[metrics.multi]]\nheader = "ConsumedEnergy"\n')
+        with pytest.raises(ValueError, match="missing required key"):
+            config.configure(toml)
