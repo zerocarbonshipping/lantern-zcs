@@ -79,3 +79,18 @@ class TestFullRender:
     def test_missing_csv_is_reported_not_raised(self, monkeypatch, tmp_path, caplog):
         run_cli(monkeypatch, tmp_path / "missing.csv", "--config", CONFIG)
         assert any("not found" in r.message for r in caplog.records)
+
+
+class TestModuleEntrypoint:
+    def test_python_dash_m_invocation_works(self, tmp_path):
+        """python -m lantern.cli is the documented Windows fallback."""
+        import subprocess
+        import sys
+
+        result = subprocess.run(
+            [sys.executable, "-m", "lantern.cli", str(REPORT),
+             "--config", str(CONFIG), "--list-scenarios"],
+            capture_output=True, text=True, cwd=EXAMPLES_DIR.parent,
+        )
+        assert result.returncode == 0
+        assert "2 unique scenario(s)" in result.stdout
