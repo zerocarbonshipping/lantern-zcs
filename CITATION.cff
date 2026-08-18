@@ -8,7 +8,7 @@ type: software
 license: Apache-2.0
 version: 1.0.0
 repository-code: "https://github.com/zerocarbonshipping/lantern-zcs"
-date-released: 2026-08-17
+date-released: 2026-08-18
 authors:
   - given-names: Mathias
     family-names: Hintze
