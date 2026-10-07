@@ -1,0 +1,704 @@
+# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+# SPDX-License-Identifier: Apache-2.0
+
+# Lantern's plot catalogue: which series each plot shows, their names, units and
+# axes. Colours and chart styling live in style.toml. Put a plots.toml in
+# ~/.config/lantern/ to use your own catalogue instead.
+#
+# [[plots]] keys: id, title, section, unit (default: the file's unit of the
+# first attribute), facet = "node" | "key1" (one panel each), split = "node"
+# (one view each, picked in the page), rangemode = "normal" for negative values.
+#
+# Layer keys, on the plot or in [[plots.layers]]:
+#   series      "kind/node/attribute/key1/key2", * as wildcard, missing parts
+#               match all; the global profile has the empty node: "global//x"
+#   kind        line (default), stack or area
+#   label       key1 (default), key2, node, attribute, or "none" to sum all
+#   name        series name for label = "none" or a series without key
+#   transforms  per_year, cumulative, negate, scale:x, applied in order
+#   dash        plotly line dash for targets and limits, e.g. "dash"
+#
+# Series that are zero or missing throughout are left out; infinite values (no
+# limit) are not drawn.
+
+# Canonical stacking and panel order: fuel types, fuels, feedstocks, shore power,
+# then the categories some plots stack. Labels not listed follow alphabetically.
+order = [
+    # fuel types: fossil first, then the green fuels, hydrogen and electricity last
+    "OIL", "LPG", "METHANE", "METHANOL", "ETHANOL", "AMMONIA", "HYDROGEN", "ELECTRICITY",
+    # fuels: fossil first, then bio, then blue and electro, electricity last
+    "fossil_fuel_oil", "heavy_fuel_oil", "liquefied_petroleum_gas", "liquefied_natural_gas", "ammonia_grey",
+    "fatty_acid_methyl_ester", "oil_bio", "methanol_bio", "ethanol_bio", "methane_bio", "ammonia_blue",
+    "ammonia_electro", "methanol_electro", "methane_electro", "diesel_electro", "electricity",
+    # feedstocks
+    "crude_oil", "natural_gas", "methanol_grey", "used_cooking_oil", "feedstock_biogas",
+    "feedstock_bioethanol_fermentation", "feedstock_biomethanol_gasification", "carbon_dioxide_biogenic",
+    "demineralized_water",
+    "shore_power",
+    # energy demand types
+    "PROPULSION", "ELECTRICAL", "HEAT",
+    # expense categories
+    "vessel_expenses", "fuel_conversion_expenses", "technology_expenses", "total_fuel_expenses",
+    "total_levy_expenses", "regulation_expenses",
+]
+
+# Display names, keyed by the raw label in the data: fuel types, fuels,
+# feedstocks, fleets, energy demand types and the attribute names plots label
+# their series with.
+[labels]
+# fuel types
+OIL = "Oil"
+LPG = "LPG"
+METHANE = "Methane"
+METHANOL = "Methanol"
+ETHANOL = "Ethanol"
+AMMONIA = "Ammonia"
+HYDROGEN = "Hydrogen"
+ELECTRICITY = "Electricity"
+# fuels
+ammonia_blue = "Blue ammonia"
+ammonia_electro = "e-ammonia"
+ammonia_grey = "Grey ammonia"
+diesel_electro = "e-diesel"
+electricity = "Electricity"
+fatty_acid_methyl_ester = "FAME"
+liquefied_petroleum_gas = "LPG"
+liquefied_natural_gas = "LNG"
+heavy_fuel_oil = "HFO"
+fossil_fuel_oil = "Fuel oil"
+oil_bio = "Bio-oil"
+methane_bio = "Bio-methane"
+methane_electro = "e-methane"
+methanol_bio = "Bio-methanol"
+methanol_electro = "e-methanol"
+ethanol_bio = "Bio-ethanol"
+shore_power = "Shore power"
+# feedstocks
+carbon_dioxide_biogenic = "Biogenic CO₂ (PS)"
+demineralized_water = "Dem. water"
+feedstock_bioethanol_fermentation = "Fermentation feedstock"
+feedstock_biomethanol_gasification = "Gasification feedstock"
+feedstock_biogas = "Biogas feedstock"
+crude_oil = "Crude oil"
+natural_gas = "Natural gas"
+used_cooking_oil = "UCO"
+methanol_grey = "Grey methanol"
+# fleets
+tanker_7500_dwt = "Tanker 7.5K DWT"
+tanker_47k_dwt = "Tanker 47K DWT"
+tanker_127k_dwt = "Tanker 127K DWT"
+tanker_300k_dwt = "Tanker 300K DWT"
+container_3500_teu = "Container 3500 TEU"
+container_8000_teu = "Container 8000 TEU"
+container_15000_teu = "Container 15000 TEU"
+container_20000_teu = "Container 20000 TEU"
+bulk_carrier_26k_dwt = "Bulk Carrier 26K DWT"
+bulk_carrier_52k_dwt = "Bulk Carrier 52K DWT"
+bulk_carrier_80k_dwt = "Bulk Carrier 80K DWT"
+bulk_carrier_200k_dwt = "Bulk Carrier 200K DWT"
+cruise_25k_gt = "Cruise 25K GT"
+cruise_100k_gt = "Cruise 100K GT"
+cruise_175k_gt = "Cruise 175K GT"
+gas_carrier_100k_cbm = "Gas Carrier 100K CBM"
+roro_4000_ceu = "Roll-on/Roll-off 4000 CEU"
+roro_7000_ceu = "Roll-on/Roll-off 7000 CEU"
+ferry = "Ferry"
+general_cargo = "General Cargo 10K DWT"
+tug = "Tug"
+offshore = "Offshore"
+other = "Other"
+# energy demand types
+PROPULSION = "Propulsion"
+ELECTRICAL = "Electrical"
+HEAT = "Heat"
+# emissions
+total_equivalent_wtw = "WTW"
+intensity_total_equivalent_wtw = "WTW"
+# energy savings
+technology_energy_intensity_saving = "Technology"
+operational_energy_intensity_saving = "Operational"
+energy_intensity_saving = "Total"
+# expenses and capital
+vessel_expenses = "Vessel"
+fuel_conversion_expenses = "Fuel conversion"
+technology_expenses = "Technology"
+total_fuel_expenses = "Fuel"
+total_levy_expenses = "Levy"
+regulation_expenses = "Regulation"
+vessel_tied_capital = "Vessels"
+plant_tied_capital = "Plants"
+# fuel and feed supply
+consumed_energy = "Consumed"
+production_energy = "Produced"
+fuel_type_demand = "Demand"
+production_type_energy = "Supply"
+feed_mass = "Consumed"
+feed_constraint = "Constraint"
+bunker_mass = "Bunkered"
+bunker_supply_mass = "Supply"
+bunkering_limit_mass = "Infrastructure"
+pilot_fuel_share = "Actual share"
+# fleet
+existing_vessels = "Vessels"
+reference_speed = "Reference"
+minimum_speed = "Minimum"
+maximum_speed = "Maximum"
+lowest_speed = "Lowest"
+highest_speed = "Highest"
+optimal_speed = "Optimal"
+actual_speed = "Actual"
+investment_freight_rate = "Investment"
+instantaneous_freight_rate = "Instantaneous"
+# producers and plants
+development = "Planned"
+maximum_development = "Constraint"
+cumulative_development = "Planned"
+cumulative_maximum_development = "Constraint"
+investment_intensity_cost = "Investment"
+instantaneous_intensity_cost = "Instantaneous"
+# regulations
+vessel_compliance = "Compliance"
+shared_compliance = "Compliance"
+shared_units = "Compliance"
+vessel_threshold = "Threshold"
+shared_threshold = "Threshold"
+shared_allowance = "Threshold"
+adjusted_vessel_threshold = "Adjusted threshold"
+adjusted_shared_threshold = "Adjusted threshold"
+non_compliance_units = "Non-compliance"
+surplus_units = "Surplus"
+remedial_cost = "Remedial"
+flexibility_cost = "Flexible"
+
+# Colours, keyed like [labels]; other labels take the style palette.
+
+
+# ---------------------------------------------------------------------------
+# Global
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "global_emission_absolute"
+section = "Global"
+title = "WTW emissions"
+label = "none"
+series = "global//total_equivalent_wtw"
+
+[[plots]]
+id = "global_emission_intensity"
+section = "Global"
+title = "WTW emission intensity"
+label = "none"
+series = "global//intensity_total_equivalent_wtw"
+
+[[plots]]
+id = "global_fuel_consumed"
+section = "Global"
+title = "Fuel consumed"
+kind = "stack"
+name = "shore_power"
+series = ["global//consumed_energy", "global//shore_power_energy"]
+
+[[plots]]
+id = "global_fuel_type_consumed"
+section = "Global"
+title = "Fuel consumed by fuel type"
+kind = "stack"
+name = "shore_power"
+series = ["global//fuel_type_energy", "global//shore_power_energy"]
+
+[[plots]]
+id = "global_energy_demand"
+section = "Global"
+title = "Energy demand by demand type"
+kind = "stack"
+# in port, vessels demand electrical energy and heat only
+series = ["global//energy_sea", "global//energy_port"]
+
+[[plots]]
+id = "global_energy_saving"
+section = "Global"
+title = "Energy saving"
+unit = "%"
+
+[[plots.layers]]
+series = "global//saving"
+transforms = ["scale:100"]
+
+[[plots.layers]]
+label = "attribute"
+dash = "dash"
+series = [
+    "global//technology_energy_intensity_saving",
+    "global//operational_energy_intensity_saving",
+    "global//energy_intensity_saving",
+]
+transforms = ["scale:100"]
+
+[[plots]]
+id = "global_installed_power"
+section = "Global"
+title = "Installed power by fuel type"
+kind = "stack"
+series = "global//installed_power"
+
+[[plots]]
+id = "global_power_converted_cumulative"
+section = "Global"
+title = "Cumulative power converted from (below) and to (above) each fuel type"
+rangemode = "normal"
+
+[[plots.layers]]
+kind = "stack"
+series = "global//fuel_converted_power"
+transforms = ["cumulative", "negate"]
+
+[[plots.layers]]
+kind = "stack"
+label = "key2"
+series = "global//fuel_converted_power"
+transforms = ["cumulative"]
+
+[[plots]]
+id = "global_feedstock_consumption"
+section = "Global"
+# the feeds include the processes of the supply chain, not only the feedstocks
+title = "Feed consumption against constraint"
+facet = "key1"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "global//feed_mass"
+
+[[plots.layers]]
+label = "none"
+series = "global//feed_constraint"
+
+[[plots]]
+id = "global_fuel_related_expenses"
+section = "Global"
+title = "Fuel-related expenses"
+kind = "stack"
+label = "attribute"
+series = ["global//total_fuel_expenses", "global//total_levy_expenses", "global//regulation_expenses"]
+
+[[plots]]
+id = "global_fuel_related_expenses_cumulative"
+section = "Global"
+title = "Cumulative fuel-related expenses"
+kind = "stack"
+label = "attribute"
+series = ["global//total_fuel_expenses", "global//total_levy_expenses", "global//regulation_expenses"]
+transforms = ["cumulative"]
+
+[[plots]]
+id = "global_expenses"
+section = "Global"
+title = "Expenses"
+kind = "stack"
+label = "attribute"
+series = [
+    "global//vessel_expenses",
+    "global//fuel_conversion_expenses",
+    "global//technology_expenses",
+    "global//total_fuel_expenses",
+    "global//total_levy_expenses",
+    "global//regulation_expenses",
+]
+
+[[plots]]
+id = "global_expenses_cumulative"
+section = "Global"
+title = "Cumulative expenses"
+kind = "stack"
+label = "attribute"
+series = [
+    "global//vessel_expenses",
+    "global//fuel_conversion_expenses",
+    "global//technology_expenses",
+    "global//total_fuel_expenses",
+    "global//total_levy_expenses",
+    "global//regulation_expenses",
+]
+transforms = ["cumulative"]
+
+[[plots]]
+id = "global_tied_capital"
+section = "Global"
+title = "Capital tied in vessels and plants"
+label = "attribute"
+series = ["global//vessel_tied_capital", "global//plant_tied_capital"]
+
+# ---------------------------------------------------------------------------
+# Fuel
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "fuel_type_supply_demand"
+section = "Fuel"
+title = "Fuel supply and demand by fuel type"
+facet = "key1"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "global//fuel_type_demand"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "global//production_type_energy"
+
+[[plots]]
+id = "fuel_supply_demand"
+section = "Fuel"
+title = "Fuel consumed against produced"
+facet = "key1"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "global//consumed_energy"
+
+[[plots.layers]]
+label = "none"
+series = "global//production_energy"
+
+# ---------------------------------------------------------------------------
+# Engine
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "engine_fuel_consumed"
+section = "Engine"
+title = "Fuel consumed by the engines of each fuel type"
+kind = "stack"
+facet = "key1"
+label = "key2"
+series = "global//converter_energy"
+
+[[plots]]
+id = "engine_age"
+section = "Engine"
+title = "Average vessel age by fuel type"
+facet = "key1"
+series = "global//weighted_average_age"
+
+[[plots]]
+id = "engine_pilot_fuel_share"
+section = "Engine"
+title = "Pilot fuel share by primary fuel type"
+facet = "key1"
+unit = "%"
+series = "global//pilot_fuel_share"
+transforms = ["scale:100"]
+
+# ---------------------------------------------------------------------------
+# Fleet
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "fleet_emission_absolute"
+section = "Fleet"
+title = "WTW emissions per fleet"
+facet = "node"
+label = "none"
+series = "fleet/*/total_equivalent_wtw"
+
+[[plots]]
+id = "fleet_emission_intensity"
+section = "Fleet"
+title = "WTW emission intensity per fleet"
+facet = "node"
+label = "none"
+series = "fleet/*/intensity_total_equivalent_wtw"
+
+[[plots]]
+id = "fleet_fuel_consumed"
+section = "Fleet"
+title = "Fuel consumed per fleet"
+kind = "stack"
+facet = "node"
+name = "shore_power"
+series = ["fleet/*/consumed_energy", "fleet/*/shore_power_energy"]
+
+[[plots]]
+id = "fleet_evolution"
+section = "Fleet"
+title = "Vessels per fleet"
+kind = "stack"
+facet = "node"
+series = "fleet/*/existing_vessels"
+
+[[plots]]
+id = "fleet_changes"
+section = "Fleet"
+title = "Newbuilds (above) and scrapped vessels (below) per fleet"
+facet = "node"
+unit = "vessels/year"
+rangemode = "normal"
+
+[[plots.layers]]
+kind = "stack"
+series = "fleet/*/scrap"
+transforms = ["per_year", "negate"]
+
+[[plots.layers]]
+kind = "stack"
+series = "fleet/*/newbuilds"
+transforms = ["per_year"]
+
+[[plots]]
+id = "fleet_conversions_cumulative"
+section = "Fleet"
+title = "Cumulative vessels converted from (below) and to (above) each vessel"
+facet = "node"
+rangemode = "normal"
+
+[[plots.layers]]
+kind = "stack"
+series = "fleet/*/fuel_conversions"
+transforms = ["cumulative", "negate"]
+
+[[plots.layers]]
+kind = "stack"
+label = "key2"
+series = "fleet/*/fuel_conversions"
+transforms = ["cumulative"]
+
+[[plots]]
+id = "fleet_energy_saving"
+section = "Fleet"
+title = "Energy intensity saving per fleet"
+facet = "node"
+label = "attribute"
+unit = "%"
+rangemode = "normal"
+series = [
+    "fleet/*/operational_energy_intensity_saving",
+    "fleet/*/technology_energy_intensity_saving",
+    "fleet/*/energy_intensity_saving",
+]
+transforms = ["scale:100"]
+
+[[plots]]
+id = "fleet_speed"
+section = "Fleet"
+# a fleet without speed management has only its reference speed
+title = "Fleet speed against its bounds"
+facet = "node"
+
+[[plots.layers]]
+label = "attribute"
+dash = "dot"
+series = ["fleet/*/minimum_speed", "fleet/*/maximum_speed"]
+
+[[plots.layers]]
+label = "attribute"
+dash = "dashdot"
+series = ["fleet/*/lowest_speed", "fleet/*/highest_speed"]
+
+[[plots.layers]]
+label = "attribute"
+dash = "dash"
+series = "fleet/*/reference_speed"
+
+[[plots.layers]]
+label = "attribute"
+series = ["fleet/*/optimal_speed", "fleet/*/actual_speed"]
+
+[[plots]]
+id = "fleet_speed_per_vessel"
+section = "Fleet"
+title = "Vessel speed against its bounds"
+facet = "node"
+
+[[plots.layers]]
+label = "attribute"
+dash = "dot"
+series = ["vessel/*/minimum_speed", "vessel/*/maximum_speed"]
+
+[[plots.layers]]
+label = "attribute"
+series = "vessel/*/actual_speed"
+
+[[plots]]
+id = "fleet_investment_metric"
+section = "Fleet"
+title = "Investment and instantaneous freight rate per vessel"
+facet = "node"
+unit = "USD/1000 cargo-miles"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "vessel/*/investment_freight_rate"
+transforms = ["scale:1000"]
+
+[[plots.layers]]
+label = "none"
+series = "vessel/*/instantaneous_freight_rate"
+transforms = ["scale:1000"]
+
+# ---------------------------------------------------------------------------
+# Producer
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "producer_development"
+section = "Producer"
+title = "Plant development per producer"
+facet = "node"
+
+[[plots.layers]]
+label = "none"
+series = "producer/*/development"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "producer/*/maximum_development"
+
+[[plots]]
+id = "producer_development_cumulative"
+section = "Producer"
+title = "Cumulative plant development per producer"
+facet = "node"
+
+[[plots.layers]]
+label = "none"
+series = "producer/*/cumulative_development"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "producer/*/cumulative_maximum_development"
+
+[[plots]]
+id = "producer_feed_consumption"
+section = "Producer"
+title = "Feed consumption against constraint"
+split = "node"
+facet = "key1"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "producer/*/feed_mass"
+
+[[plots.layers]]
+label = "none"
+series = "producer/*/feed_constraint"
+
+# ---------------------------------------------------------------------------
+# Plant
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "plant_production_cost"
+section = "Plant"
+title = "Levelized production cost per plant"
+facet = "node"
+rangemode = "normal"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "plant/*/investment_intensity_cost"
+
+[[plots.layers]]
+label = "none"
+series = "plant/*/instantaneous_intensity_cost"
+
+# ---------------------------------------------------------------------------
+# Port
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "port_bunker_price"
+section = "Port"
+title = "Bunker price per fuel"
+split = "node"
+series = "port/*/bunker_intensity_price"
+
+[[plots]]
+id = "port_bunker_supply"
+section = "Port"
+# a liquid-market fuel has no supply or infrastructure limit, only its bunkered mass
+title = "Bunkered fuel against supply and infrastructure"
+split = "node"
+facet = "key1"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "port/*/bunker_mass"
+
+[[plots.layers]]
+label = "none"
+series = "port/*/bunker_supply_mass"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "port/*/bunkering_limit_mass"
+
+# ---------------------------------------------------------------------------
+# Regulation
+# ---------------------------------------------------------------------------
+
+[[plots]]
+id = "regulation_compliance"
+section = "Regulation"
+title = "Compliance against threshold"
+split = "node"
+# one panel per vessel, and one without a title for the shared compliance
+facet = "key1"
+unit = "regulation measure"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "regulation/*/vessel_compliance"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "regulation/*/vessel_threshold"
+
+[[plots.layers]]
+label = "none"
+dash = "dot"
+series = "regulation/*/adjusted_vessel_threshold"
+
+[[plots.layers]]
+kind = "area"
+label = "none"
+series = "regulation/*/shared_compliance"
+
+[[plots.layers]]
+label = "none"
+dash = "dash"
+series = "regulation/*/shared_threshold"
+
+[[plots.layers]]
+label = "none"
+dash = "dot"
+series = "regulation/*/adjusted_shared_threshold"
+
+[[plots]]
+id = "regulation_unit_trading"
+section = "Regulation"
+title = "Non-compliance and surplus units"
+split = "node"
+label = "attribute"
+series = ["regulation/*/non_compliance_units", "regulation/*/surplus_units"]
+
+[[plots]]
+id = "regulation_flexibility_cost"
+section = "Regulation"
+title = "Remedial and flexibility cost"
+split = "node"
+label = "attribute"
+series = ["regulation/*/remedial_cost", "regulation/*/flexibility_cost"]

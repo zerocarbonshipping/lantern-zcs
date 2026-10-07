@@ -6,7 +6,7 @@ SPDX-License-Identifier: CC-BY-4.0
 # Contributing to Lantern
 
 Thank you for your interest in improving Lantern. In principle anything can
-be contributed: bug fixes, features, documentation, and examples.
+be contributed: bug fixes, features and documentation.
 Contributions are made by forking the repository and opening a pull request
 against the `dev` branch.
 
@@ -18,10 +18,9 @@ covers the visualization and post-processing layer on top of its outputs.
 ## Getting started
 
 1. Fork the repository and clone your fork.
-2. Set up a development environment. Feel free to use `make conda-setup`
-   (conda) or `make pip-setup` (venv + pip).
+2. Install it with the dev tools: `pip install -e ".[dev]"`.
 3. Create a branch from `dev` for your change.
-4. Verify your setup by running `make lint` and `make test`.
+4. Verify your setup by running `make lint`.
 
 ## What to contribute
 
@@ -31,8 +30,8 @@ Any valuable contribution is welcome.
 and how the fix addresses it. If you have found a bug but do not plan to fix
 it yourself, please open an issue instead.
 
-**Large features**, such as new plot modes, new representative-selection
-scoring, and major refactors, should start as a feature request issue. This
+**Large features**, such as new plot kinds and major refactors, should start
+as a feature request issue. This
 lets us align on scope and design before you invest significant effort.
 Smaller features can be submitted directly as a pull request.
 
@@ -44,25 +43,18 @@ Smaller features can be submitted directly as a pull request.
   refactors belong in separate pull requests.
 - Write a clear description: what the change does, why it is needed, and how
   it was verified.
-- Follow the existing code style (`flake8` configuration and
-  [`CODESTYLE.md`](CODESTYLE.md)). Match the conventions of the file you are
-  editing.
-- Update documentation when behavior changes: `docs/user-manual.md` for
-  user-facing changes and docstrings for code changes.
+- Follow [`CODESTYLE.md`](CODESTYLE.md) and match the file you are editing.
+- Update documentation when behavior changes: the README and the header of
+  `plots.toml` or `style.toml` for user-facing changes, docstrings for code.
 - Add an entry to `CHANGELOG.md` for user-visible changes. See the
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 
-## Testing
+## Checking a change
 
-All tests must pass before a pull request can be merged. Run the suite with
-`make test` or plain `pytest`.
-
-New code needs appropriate test coverage:
-
-- New non-trivial calculations (quantile math, representative selection,
-  timestep alignment) need a unit test in `tests/`.
-- Changes that alter rendered plots or exported CSVs should explain the
-  difference in the pull request description.
+Lantern has no test suite. Before a pull request, run `make lint`, then open
+Navigate results files with `lantern PATH` and look at the plots the change
+touches. Changes that alter rendered plots or
+exported CSVs should explain the difference in the pull request description.
 
 ## Questions
 

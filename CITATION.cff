@@ -3,10 +3,10 @@
 
 cff-version: 1.2.0
 title: Lantern
-abstract: "Quantile plots and representative-pathway selection for Navigate scenario ensembles"
+abstract: "Browser viewer for Navigate results: interactive plots, ensemble bands and representative pathways"
 type: software
 license: Apache-2.0
-version: 1.0.0
+version: 2.0.0
 repository-code: "https://github.com/zerocarbonshipping/lantern-zcs"
 date-released: 2026-08-18
 authors:

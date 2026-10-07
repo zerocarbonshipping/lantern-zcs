@@ -1,0 +1,33 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lantern</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/plotly.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header>
+    <b>Lantern</b>
+    <span class="spacer"></span>
+    <label class="button">Add files<input id="files" type="file" accept=".parquet" multiple hidden></label>
+    <label class="button">Add folder<input id="folder" type="file" webkitdirectory hidden></label>
+  </header>
+  <div class="layout">
+    <nav id="sidebar"></nav>
+    <main>
+      <p id="empty" class="empty">Drop Navigate results files or folders here, or add them above.</p>
+      <div id="toolbar" hidden><h2 id="title"></h2><select id="node" hidden></select></div>
+      <div id="figure"></div>
+      <p id="message"></p>
+    </main>
+    <aside><b>Runs</b><ul id="runs"></ul></aside>
+  </div>
+</body>
+</html>
