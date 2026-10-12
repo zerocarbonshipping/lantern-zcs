@@ -9,7 +9,7 @@ import webbrowser
 from pathlib import Path
 
 from lantern.config import load_config
-from lantern.data import ResultsFileError, results_files
+from lantern.data import ResultsFileError
 from lantern.server import Session, make_server
 
 PORT = 8050
@@ -17,16 +17,16 @@ PORT = 8050
 
 def main() -> int:
     """Load the given results, serve the viewer and open it in the browser."""
-    session = Session(load_config())
+    session = Session(load_config(), [Path(arg) for arg in sys.argv[1:]])
 
     try:
-        for path, name in results_files([Path(arg) for arg in sys.argv[1:]]):
-            session.add(path.read_bytes(), name)
-            print(f"Loaded {name}", flush=True)
-
+        session.refresh()
     except (OSError, ResultsFileError) as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
+
+    for name in session.runs:
+        print(f"Loaded {name}", flush=True)
 
     try:
         server = make_server(session, PORT)

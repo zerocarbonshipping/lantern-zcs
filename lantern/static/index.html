@@ -17,12 +17,12 @@ SPDX-License-Identifier: Apache-2.0
     <b>Lantern</b>
     <span class="spacer"></span>
     <label class="button">Add files<input id="files" type="file" accept=".parquet" multiple hidden></label>
-    <label class="button">Add folder<input id="folder" type="file" webkitdirectory hidden></label>
+    <button id="refresh" class="button" title="Reload the results files Lantern was opened with from disk" hidden>Refresh</button>
   </header>
   <div class="layout">
     <nav id="sidebar"></nav>
     <main>
-      <p id="empty" class="empty">Drop Navigate results files or folders here, or add them above.</p>
+      <p id="empty" class="empty">Drop Navigate results files here, or add them above.</p>
       <div id="toolbar" hidden><h2 id="title"></h2><select id="node" hidden></select></div>
       <div id="figure"></div>
       <p id="message"></p>

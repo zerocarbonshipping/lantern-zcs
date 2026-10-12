@@ -1,17 +1,15 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Read plots.toml (what to plot) and style.toml (how it looks); a file in ~/.config/lantern/ replaces either."""
+"""Read the packaged plots.toml (what to plot) and style.toml (how it looks)."""
 
 from __future__ import annotations
 
 import tomllib
 from dataclasses import dataclass, fields
 from importlib.resources import files
-from pathlib import Path
 
-USER_DIR = Path.home() / ".config" / "lantern"
-_TUPLES = ("series", "transforms")
+_TUPLES = ("series",)
 
 
 @dataclass(frozen=True)
@@ -22,7 +20,7 @@ class Layer:
     kind: str = "line"
     label: str | None = "key1"
     name: str = ""
-    transforms: tuple[str, ...] = ()
+    scale: float = 1.0
     dash: str | None = None
 
 
@@ -47,11 +45,8 @@ class Style:
     colors: dict[str, str]
     palette: tuple[str, ...]
     template: str = "plotly_white"
-    height: int = 560
     panel_height: int = 280
     line_width: float = 2.0
-    stack_opacity: float = 0.85
-    area_opacity: float = 0.3
 
 
 @dataclass(frozen=True)
@@ -73,7 +68,7 @@ class Config:
 
 
 def load_config() -> Config:
-    """Read plots.toml and style.toml, each the user's if present, else the packaged one."""
+    """Read plots.toml and style.toml."""
     plots, style = _read("plots.toml"), _read("style.toml")
     swatches = style.get("swatches", {})
 
@@ -90,10 +85,7 @@ def load_config() -> Config:
 
 
 def _read(name: str) -> dict:
-    user = USER_DIR / name
-    text = user.read_text(encoding="utf-8") if user.is_file() else files("lantern").joinpath(name).read_text("utf-8")
-
-    return tomllib.loads(text)
+    return tomllib.loads(files("lantern").joinpath(name).read_text("utf-8"))
 
 
 def _plot(raw: dict) -> Plot:

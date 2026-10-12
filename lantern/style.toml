@@ -1,9 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-# Lantern's style: the Center's colours and the chart settings. Put a style.toml
-# in ~/.config/lantern/ to use your own style instead; plots.toml is not affected.
-# Colours are hex values or names from [swatches].
+# Lantern's style: the Center's colours and the chart settings. Colours are hex
+# values or names from [swatches].
 
 # colours for series without an entry in [colors], in turn
 palette = [
@@ -13,11 +12,8 @@ palette = [
 
 [chart]
 template = "plotly_white"   # plotly template
-height = 560                # px, of a one-panel figure
-panel_height = 280          # px, per row of a panel grid
+panel_height = 280          # px, per row of panels; the page grows a figure to fill the window
 line_width = 2.0
-stack_opacity = 0.85        # fill of stacked series
-area_opacity = 0.3          # fill under area series
 
 # Center colours used below, by palette and shade (0 lightest, 6 darkest); palette and
 # [colors] name them instead of repeating hex values.
@@ -104,6 +100,12 @@ technology_expenses = "red_3"
 total_fuel_expenses = "green_3"
 total_levy_expenses = "yellow_3"
 regulation_expenses = "red_3"
+cumulative_vessel_expenses = "blue_3"
+cumulative_fuel_conversion_expenses = "blue_2"
+cumulative_technology_expenses = "red_3"
+cumulative_total_fuel_expenses = "green_3"
+cumulative_total_levy_expenses = "yellow_3"
+cumulative_regulation_expenses = "red_3"
 vessel_tied_capital = "blue_3"
 plant_tied_capital = "red_3"
 # fuel and feed supply

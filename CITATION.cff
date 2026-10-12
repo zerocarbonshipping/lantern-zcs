@@ -3,7 +3,7 @@
 
 cff-version: 1.2.0
 title: Lantern
-abstract: "Browser viewer for Navigate results: interactive plots, ensemble bands and representative pathways"
+abstract: "Browser viewer for Navigate results files: interactive Plotly plots of one or several runs"
 type: software
 license: Apache-2.0
 version: 2.0.0

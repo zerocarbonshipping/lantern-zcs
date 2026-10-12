@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Lantern's plot catalogue: which series each plot shows, their names, units and
-# axes. Colours and chart styling live in style.toml. Put a plots.toml in
-# ~/.config/lantern/ to use your own catalogue instead.
+# axes. Colours and chart styling live in style.toml.
 #
 # [[plots]] keys: id, title, section, unit (default: the file's unit of the
 # first attribute), facet = "node" | "key1" (one panel each), split = "node"
@@ -15,11 +14,12 @@
 #   kind        line (default), stack or area
 #   label       key1 (default), key2, node, attribute, or "none" to sum all
 #   name        series name for label = "none" or a series without key
-#   transforms  per_year, cumulative, negate, scale:x, applied in order
+#   scale       factor the values are multiplied by, e.g. -1 to draw below
+#               zero or 100 for a percentage
 #   dash        plotly line dash for targets and limits, e.g. "dash"
 #
-# Series that are zero or missing throughout are left out; infinite values (no
-# limit) are not drawn.
+# Series that are zero or missing throughout are left out; missing values, such
+# as a limit without bound, are not drawn.
 
 # Canonical stacking and panel order: fuel types, fuels, feedstocks, shore power,
 # then the categories some plots stack. Labels not listed follow alphabetically.
@@ -40,6 +40,8 @@ order = [
     # expense categories
     "vessel_expenses", "fuel_conversion_expenses", "technology_expenses", "total_fuel_expenses",
     "total_levy_expenses", "regulation_expenses",
+    "cumulative_vessel_expenses", "cumulative_fuel_conversion_expenses", "cumulative_technology_expenses",
+    "cumulative_total_fuel_expenses", "cumulative_total_levy_expenses", "cumulative_regulation_expenses",
 ]
 
 # Display names, keyed by the raw label in the data: fuel types, fuels,
@@ -125,6 +127,12 @@ technology_expenses = "Technology"
 total_fuel_expenses = "Fuel"
 total_levy_expenses = "Levy"
 regulation_expenses = "Regulation"
+cumulative_vessel_expenses = "Vessel"
+cumulative_fuel_conversion_expenses = "Fuel conversion"
+cumulative_technology_expenses = "Technology"
+cumulative_total_fuel_expenses = "Fuel"
+cumulative_total_levy_expenses = "Levy"
+cumulative_regulation_expenses = "Regulation"
 vessel_tied_capital = "Vessels"
 plant_tied_capital = "Plants"
 # fuel and feed supply
@@ -223,7 +231,7 @@ unit = "%"
 
 [[plots.layers]]
 series = "global//saving"
-transforms = ["scale:100"]
+scale = 100
 
 [[plots.layers]]
 label = "attribute"
@@ -233,7 +241,7 @@ series = [
     "global//operational_energy_intensity_saving",
     "global//energy_intensity_saving",
 ]
-transforms = ["scale:100"]
+scale = 100
 
 [[plots]]
 id = "global_installed_power"
@@ -250,14 +258,13 @@ rangemode = "normal"
 
 [[plots.layers]]
 kind = "stack"
-series = "global//fuel_converted_power"
-transforms = ["cumulative", "negate"]
+series = "global//cumulative_fuel_converted_power"
+scale = -1
 
 [[plots.layers]]
 kind = "stack"
 label = "key2"
-series = "global//fuel_converted_power"
-transforms = ["cumulative"]
+series = "global//cumulative_fuel_converted_power"
 
 [[plots]]
 id = "global_feedstock_consumption"
@@ -289,8 +296,11 @@ section = "Global"
 title = "Cumulative fuel-related expenses"
 kind = "stack"
 label = "attribute"
-series = ["global//total_fuel_expenses", "global//total_levy_expenses", "global//regulation_expenses"]
-transforms = ["cumulative"]
+series = [
+    "global//cumulative_total_fuel_expenses",
+    "global//cumulative_total_levy_expenses",
+    "global//cumulative_regulation_expenses",
+]
 
 [[plots]]
 id = "global_expenses"
@@ -314,14 +324,13 @@ title = "Cumulative expenses"
 kind = "stack"
 label = "attribute"
 series = [
-    "global//vessel_expenses",
-    "global//fuel_conversion_expenses",
-    "global//technology_expenses",
-    "global//total_fuel_expenses",
-    "global//total_levy_expenses",
-    "global//regulation_expenses",
+    "global//cumulative_vessel_expenses",
+    "global//cumulative_fuel_conversion_expenses",
+    "global//cumulative_technology_expenses",
+    "global//cumulative_total_fuel_expenses",
+    "global//cumulative_total_levy_expenses",
+    "global//cumulative_regulation_expenses",
 ]
-transforms = ["cumulative"]
 
 [[plots]]
 id = "global_tied_capital"
@@ -392,7 +401,7 @@ title = "Pilot fuel share by primary fuel type"
 facet = "key1"
 unit = "%"
 series = "global//pilot_fuel_share"
-transforms = ["scale:100"]
+scale = 100
 
 # ---------------------------------------------------------------------------
 # Fleet
@@ -442,12 +451,11 @@ rangemode = "normal"
 [[plots.layers]]
 kind = "stack"
 series = "fleet/*/scrap"
-transforms = ["per_year", "negate"]
+scale = -1
 
 [[plots.layers]]
 kind = "stack"
 series = "fleet/*/newbuilds"
-transforms = ["per_year"]
 
 [[plots]]
 id = "fleet_conversions_cumulative"
@@ -458,14 +466,13 @@ rangemode = "normal"
 
 [[plots.layers]]
 kind = "stack"
-series = "fleet/*/fuel_conversions"
-transforms = ["cumulative", "negate"]
+series = "fleet/*/cumulative_fuel_conversions"
+scale = -1
 
 [[plots.layers]]
 kind = "stack"
 label = "key2"
-series = "fleet/*/fuel_conversions"
-transforms = ["cumulative"]
+series = "fleet/*/cumulative_fuel_conversions"
 
 [[plots]]
 id = "fleet_energy_saving"
@@ -480,7 +487,7 @@ series = [
     "fleet/*/technology_energy_intensity_saving",
     "fleet/*/energy_intensity_saving",
 ]
-transforms = ["scale:100"]
+scale = 100
 
 [[plots]]
 id = "fleet_speed"
@@ -534,12 +541,12 @@ unit = "USD/1000 cargo-miles"
 label = "none"
 dash = "dash"
 series = "vessel/*/investment_freight_rate"
-transforms = ["scale:1000"]
+scale = 1000
 
 [[plots.layers]]
 label = "none"
 series = "vessel/*/instantaneous_freight_rate"
-transforms = ["scale:1000"]
+scale = 1000
 
 # ---------------------------------------------------------------------------
 # Producer

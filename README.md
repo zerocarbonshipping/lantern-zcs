@@ -30,11 +30,11 @@ lantern my_deck.parquet                   # opens the viewer
 lantern study/                            # every .parquet file in study/ and below
 ```
 
-Files and folders can also be added or dropped on the page. Several runs are
-shown side by side.
+Files can also be added or dropped on the page, and Refresh
+reloads the paths Lantern was opened with from disk, e.g. after a new run
+overwrote them. Several runs are shown side by side.
 
-Two files configure Lantern, and either can be replaced by a file of the same
-name in `~/.config/lantern/`:
+Two files in the package configure Lantern:
 
 - [`lantern/plots.toml`](lantern/plots.toml) says what is plotted: the series
   of each plot, display names, units and axes. Its header lists the keys.

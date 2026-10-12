@@ -10,6 +10,7 @@ from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from importlib.resources import files
+from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 import polars as pl
@@ -25,14 +26,29 @@ TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}
 class Session:
     """The loaded runs, and what is drawn from them."""
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Config, sources: list[Path]) -> None:
         self.config = config
+        self.sources = sources
         self.runs: dict[str, data.Run] = {}
+        self._from_sources: set[str] = set()
         self._cache: dict = {}
 
     def add(self, content: bytes, name: str) -> None:
         """Load a results file, replacing a run of the same name."""
         self.runs[name] = data.read_run(content, name)
+        self._from_sources.discard(name)
+        self._cache.clear()
+
+    def refresh(self) -> None:
+        """Reload the results files at the sources as they are on disk now; nothing changes if one is unreadable."""
+        runs = {name: data.read_run(path.read_bytes(), name) for path, name in data.results_files(self.sources)}
+
+        # a run whose file is gone is unloaded; uploaded runs stay
+        for name in self._from_sources - runs.keys():
+            self.runs.pop(name, None)
+
+        self.runs.update(runs)
+        self._from_sources = set(runs)
         self._cache.clear()
 
     def remove(self, name: str) -> None:
@@ -42,10 +58,9 @@ class Session:
 
     def state(self) -> dict:
         """The loaded runs and the catalogue, for the page."""
-        if not self.runs:
-            return {"runs": [], "plots": []}
+        plots = self._cached("plots", self._catalogue) if self.runs else []
 
-        return {"runs": list(self.runs), "plots": self._cached("plots", self._catalogue)}
+        return {"runs": list(self.runs), "plots": plots, "refreshable": bool(self.sources)}
 
     def figure(self, plot_id: str, node: str | None) -> str:
         """One figure as Plotly JSON; a split plot shows its first node by default."""
@@ -113,11 +128,19 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
-        name = unquote(self.headers.get("X-Filename", "run")).removesuffix(".parquet")
+        path = urlparse(self.path).path
 
         try:
-            self.session.add(self.rfile.read(int(self.headers["Content-Length"])), name)
-        except data.ResultsFileError as e:
+            if path == "/api/refresh":
+                self.session.refresh()
+            elif path == "/api/runs":
+                name = unquote(self.headers.get("X-Filename", "run"))
+                self.session.add(self.rfile.read(int(self.headers["Content-Length"])), name)
+            else:
+                self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+                return
+
+        except (OSError, data.ResultsFileError) as e:
             self._json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             return
 

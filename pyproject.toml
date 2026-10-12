@@ -10,11 +10,12 @@ name = "lantern-zcs"
 version = "2.0.0"
 authors = [
     { name = "Mathias Hintze", email = "mathias.hintze@zerocarbonshipping.com" },
+    { name = "Julius Thomas", email = "julius.thomas@zerocarbonshipping.com"}
 ]
 maintainers = [
     { name = "Frederik Winkel Lehn", email = "frederik.lehn@zerocarbonshipping.com" },
 ]
-description = "Browser viewer for Navigate results: interactive plots, ensemble bands and representative pathways"
+description = "Browser viewer for Navigate results files: interactive Plotly plots of one or several runs"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
@@ -41,7 +42,7 @@ lantern = ["plots.toml", "style.toml", "static/*"]
 lantern = "lantern.__main__:main"
 
 [tool.ruff]
-line-length = 120
+line-length = 128
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "N"]

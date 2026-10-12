@@ -16,11 +16,10 @@ Navigate run writes.
 
 ### Added
 - `lantern [PATH ...]` opens the viewer in the browser with the results files
-  at PATH; a folder loads every `.parquet` file below it. Files and folders
-  can also be added on the page.
-- `plots.toml` declares what is plotted and `style.toml` how it looks, the
-  Center's colours by default; a file of the same name in `~/.config/lantern/`
-  replaces either.
+  at PATH; a folder loads every `.parquet` file below it. Files can also be
+  added on the page, and a Refresh button reloads PATH from disk.
+- `plots.toml` declares what is plotted and `style.toml` how it looks, in the
+  Center's colours.
 
 ### Removed
 - The report CSV input, all command-line options, the HTML and PNG outputs,

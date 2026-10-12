@@ -13,12 +13,12 @@ async function api(path, options) {
   return body;
 }
 
-// upload {file, path} entries; a run is named by its path, without the extension
-async function upload(entries) {
+// upload results files; a run is named after its file, without the extension
+async function upload(files) {
   const errors = [];
 
-  for (const { file, path } of entries.filter((e) => e.path.endsWith(".parquet"))) {
-    const name = path.replace(/\.parquet$/, "");
+  for (const file of [...files].filter((f) => f.name.endsWith(".parquet"))) {
+    const name = file.name.replace(/\.parquet$/, "");
 
     try {
       state = await api("/api/runs", { method: "POST", headers: { "X-Filename": encodeURIComponent(name) }, body: file });
@@ -29,34 +29,6 @@ async function upload(entries) {
 
   $("message").textContent = errors.join(" ");
   render();
-}
-
-// a picked folder's files carry their path below the folder
-function picked(files) {
-  return [...files].map((file) => ({ file, path: file.webkitRelativePath.split("/").slice(1).join("/") || file.name }));
-}
-
-// walk dropped files and folders recursively
-async function dropped(items) {
-  const entries = [];
-  const read = (reader) => new Promise((resolve, reject) => reader.readEntries(resolve, reject));
-
-  async function walk(entry, prefix) {
-    if (entry.isFile) {
-      entries.push({ file: await new Promise((resolve, reject) => entry.file(resolve, reject)), path: prefix + entry.name });
-      return;
-    }
-
-    const reader = entry.createReader();
-    for (let batch = await read(reader); batch.length; batch = await read(reader)) {
-      for (const child of batch) await walk(child, prefix === null ? "" : `${prefix}${entry.name}/`);
-    }
-  }
-
-  const roots = [...items].map((item) => item.webkitGetAsEntry()).filter(Boolean);
-  for (const root of roots) await walk(root, root.isFile ? "" : null);
-
-  return entries;
 }
 
 function render() {
@@ -87,6 +59,7 @@ function render() {
   const loaded = state.runs.length > 0;
   $("empty").hidden = loaded;
   $("toolbar").hidden = !loaded;
+  $("refresh").hidden = !state.refreshable;
 
   if (!loaded) {
     Plotly.purge($("figure"));
@@ -121,11 +94,23 @@ function fitHeight() {
   return window.innerHeight - $("figure").getBoundingClientRect().top - 24;
 }
 
-$("files").onchange = (e) => { upload(picked(e.target.files)); e.target.value = ""; };
-$("folder").onchange = (e) => { upload(picked(e.target.files)); e.target.value = ""; };
+$("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
 $("node").onchange = (e) => show(current, e.target.value);
+$("refresh").onclick = async (e) => {
+  e.target.disabled = true;
+
+  try {
+    state = await api("/api/refresh", { method: "POST" });
+    $("message").textContent = "";
+  } catch (error) {
+    $("message").textContent = error.message;
+  }
+
+  e.target.disabled = false;
+  render();
+};
 window.ondragover = (e) => e.preventDefault();
-window.ondrop = (e) => { e.preventDefault(); dropped(e.dataTransfer.items).then(upload); };
+window.ondrop = (e) => { e.preventDefault(); upload(e.dataTransfer.files); };
 window.onresize = () => {
   if ($("figure").data) Plotly.relayout($("figure"), { height: Math.max(minHeight, fitHeight()) });
 };

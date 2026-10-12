@@ -16,21 +16,11 @@ import polars as pl
 
 from lantern.config import Layer, Plot
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 LABELS = ("kind", "node", "attribute", "key1", "key2")
 KEYS = ("run", "panel", "layer", "label", "date")
-SERIES = ("run", "panel", "layer", "label")
-YEAR = 365.25
-EMPTY = 1e-9
 
-# years each step spans; the first step counts as one year
-_STEP = (pl.col("date").diff().dt.total_days() / YEAR).fill_null(1.0).over(SERIES, order_by="date")
 _VALUE = pl.col("value")
-_TRANSFORMS = {
-    "per_year": _VALUE / _STEP,
-    "cumulative": (_VALUE.fill_nan(0.0) * _STEP).cum_sum().over(SERIES, order_by="date"),
-    "negate": -_VALUE,
-}
 
 
 class ResultsFileError(ValueError):
@@ -58,14 +48,7 @@ def read_run(data: bytes, name: str) -> Run:
     if meta.get("schema_version") != SCHEMA_VERSION:
         raise ResultsFileError(f"'{name}' has results schema {meta.get('schema_version')}, not {SCHEMA_VERSION}")
 
-    # an infinite value is an unbounded limit: there is nothing to draw
-    frame = frame.with_columns(
-        *(pl.col(c).cast(pl.String) for c in LABELS),
-        value=pl.when(_VALUE.is_infinite()).then(float("nan")).otherwise(_VALUE),
-        run=pl.lit(name),
-    )
-
-    return Run(name, meta.get("units", {}), frame)
+    return Run(name, meta.get("units", {}), frame.with_columns(run=pl.lit(name)))
 
 
 def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
@@ -102,14 +85,13 @@ def unit(plot: Plot, units: dict[str, str]) -> str:
 
     layer = plot.layers[0]
     attribute = (layer.series[0].split("/") + ["*"] * 3)[2]
-    result = units.get(attribute, "")
 
-    return result.removesuffix("/year") if "cumulative" in layer.transforms else result
+    return units.get(attribute, "")
 
 
 def has_data(plot: Plot, frame: pl.DataFrame) -> bool:
-    """Whether any layer selects a value worth drawing."""
-    return any(not _informative(frame, layer).is_empty() for layer in plot.layers)
+    """Whether any layer selects a series; the file holds only series worth drawing."""
+    return not _rows(plot, frame).is_empty()
 
 
 def split_nodes(plot: Plot, frame: pl.DataFrame) -> list[str]:
@@ -117,9 +99,7 @@ def split_nodes(plot: Plot, frame: pl.DataFrame) -> list[str]:
     if not plot.split:
         return []
 
-    rows = pl.concat([_informative(frame, layer) for layer in plot.layers])
-
-    return sorted(v for v in rows.get_column(plot.split).unique().to_list() if v)
+    return sorted(v for v in _rows(plot, frame).get_column(plot.split).unique().to_list() if v)
 
 
 def select(frame: pl.DataFrame, selectors: tuple[str, ...]) -> pl.DataFrame:
@@ -142,24 +122,16 @@ def _part(column: str, part: str) -> pl.Expr:
     return pl.col(column).str.contains(pattern).fill_null(False)
 
 
-def _informative(frame: pl.DataFrame, layer: Layer) -> pl.DataFrame:
-    return select(frame, layer.series).filter(_VALUE.fill_nan(None).abs() > EMPTY)
+def _rows(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
+    return select(frame, tuple(s for layer in plot.layers for s in layer.series))
 
 
 def _layer(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
     panel = pl.col(plot.facet).fill_null("") if plot.facet else pl.lit("")
     rows = select(frame, layer.series).with_columns(label=_label(layer), panel=panel, layer=pl.lit(index, pl.Int32))
 
-    series = rows.group_by(KEYS).agg(_VALUE.sum())
-
-    for name in layer.transforms:
-        scale = name.removeprefix("scale:")
-        series = series.with_columns(value=_VALUE * float(scale) if scale != name else _TRANSFORMS[name])
-
-    # drop series that are zero or missing throughout
-    magnitude = _VALUE.fill_nan(None).abs().sum().over("layer", "panel", "label")
-
-    return series.filter(magnitude > EMPTY).select(*KEYS, "value")
+    # a date with no value stays missing, so the line breaks there
+    return rows.group_by(KEYS).agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
 
 
 def _label(layer: Layer) -> pl.Expr:
