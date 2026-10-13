@@ -32,7 +32,27 @@ lantern study/                            # every .parquet file in study/ and be
 
 Files can also be added or dropped on the page, and Refresh
 reloads the paths Lantern was opened with from disk, e.g. after a new run
-overwrote them. Several runs are shown side by side.
+overwrote them; it shows the files there now, and files added on the page
+stay. The loaded runs are listed in the sidebar, and the plots
+show the selected one; Ctrl-click (Cmd-click on a Mac) more runs to compare
+them. Lines of several runs share the panels, a colour per run; stacked plots,
+and plots that tell series apart by colour, get a column of panels per run with
+a shared y axis. Click a panel of a multi-panel plot to enlarge it; Escape or
+"All panels" goes back.
+
+### Ensembles
+
+An uncertainty study, such as one run by
+[Horizon](https://github.com/zerocarbonshipping/horizon-zcs), writes one
+results file per sample, and compiles them into one file with a run per
+scenario and its samples. Lantern opens a compiled file like any other and
+draws an ensemble's lines and areas as the median of its samples with a band
+from the 5th to the 95th percentile; stacked plots show the medians, as
+percentiles do not add up. Each stacked plot also comes as lines, one panel per
+stacked series with its band, and is listed after it as "(Stacked)". A sample
+without a series counts it as zero, since Navigate leaves out series that are
+negligible throughout. The sidebar marks a compiled file and lists its runs,
+each with its number of samples, to select or compare.
 
 Two files in the package configure Lantern:
 

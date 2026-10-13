@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 const $ = (id) => document.getElementById(id);
-let state = { runs: [], plots: [] };
+// a list goes as the key repeated, empty values not at all
+const query = (params) => new URLSearchParams(Object.entries(params).flatMap(([k, v]) => [v].flat().filter(Boolean).map((x) => [k, x]))).toString();
+let files = [];
+let plots = [];
+let runs = [];
 let current = null;
-let minHeight = 0;
+let panels = [];
+let cells = [];
+let requests = 0;
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -13,106 +19,168 @@ async function api(path, options) {
   return body;
 }
 
-// upload results files; a run is named after its file, without the extension
-async function upload(files) {
-  const errors = [];
+// every loaded run, in the order of the sidebar
+const allRuns = () => files.flatMap((file) => Object.keys(file.runs));
 
-  for (const file of [...files].filter((f) => f.name.endsWith(".parquet"))) {
+// take the loaded files from the server; the selected runs stay selected while they are loaded
+async function load(state) {
+  files = state.files;
+  $("refresh").hidden = !state.refreshable;
+  const kept = runs.filter((id) => allRuns().includes(id));
+  await select(kept.length ? kept : allRuns().slice(0, 1));
+}
+
+async function select(next) {
+  runs = allRuns().filter((id) => next.includes(id));
+  plots = runs.length ? await api(`/api/catalogue?${query({ run: runs })}`) : [];
+  render();
+}
+
+// a click selects a run alone, a ctrl- or cmd-click adds it to the selection or takes it out, keeping one
+function pick(id, event) {
+  if (!(event.ctrlKey || event.metaKey)) return select([id]);
+  const next = runs.includes(id) ? runs.filter((r) => r !== id) : [...runs, id];
+  if (next.length) select(next);
+}
+
+// upload results files; a file is named after itself, without the extension
+async function upload(list) {
+  const errors = [];
+  let state = null;
+
+  for (const file of [...list].filter((f) => f.name.endsWith(".parquet"))) {
     const name = file.name.replace(/\.parquet$/, "");
 
     try {
-      state = await api("/api/runs", { method: "POST", headers: { "X-Filename": encodeURIComponent(name) }, body: file });
+      state = await api("/api/files", { method: "POST", headers: { "X-Filename": encodeURIComponent(name) }, body: file });
     } catch (error) {
       errors.push(error.message);
     }
   }
 
   $("message").textContent = errors.join(" ");
-  render();
+  if (state) await load(state);
+}
+
+function runButton(id, text) {
+  const title = `${text}\nCtrl-click to compare it with the selected runs`;
+  const button = Object.assign(document.createElement("button"), { textContent: text, title, className: "run" });
+  button.classList.toggle("active", runs.includes(id));
+  button.onclick = (event) => pick(id, event);
+  return button;
 }
 
 function render() {
-  const sidebar = $("sidebar");
-  sidebar.replaceChildren();
+  // a file of one run is that run; a compiled file lists its runs with their number of samples
+  $("runs").replaceChildren(...files.map((file) => {
+    const item = document.createElement("li");
+    const head = document.createElement("div");
+    const remove = Object.assign(document.createElement("button"), { textContent: "×", title: `Unload ${file.name}`, className: "remove" });
+    remove.onclick = async () => load(await api(`/api/files/${encodeURIComponent(file.name)}`, { method: "DELETE" }));
+
+    if (file.compiled) {
+      const tag = Object.assign(document.createElement("small"), { textContent: "compiled" });
+      item.className = "compiled";
+      head.append(tag, Object.assign(document.createElement("span"), { textContent: file.name, title: file.name }), remove);
+      item.append(head, ...Object.entries(file.runs).map(([id, samples]) =>
+        runButton(id, `${id.slice(file.name.length + 1)} · ${samples} sample${samples > 1 ? "s" : ""}`)));
+    } else {
+      head.append(runButton(Object.keys(file.runs)[0], file.name), remove);
+      item.append(head);
+    }
+
+    return item;
+  }));
+
+  const list = $("plots");
+  list.replaceChildren();
   let section = null;
 
-  for (const plot of state.plots) {
+  for (const plot of plots) {
     if (plot.section !== section) {
       section = plot.section;
-      sidebar.append(Object.assign(document.createElement("h4"), { textContent: section }));
+      list.append(Object.assign(document.createElement("h4"), { textContent: section }));
     }
 
     const button = Object.assign(document.createElement("button"), { textContent: plot.title, disabled: !plot.available });
     button.dataset.id = plot.id;
     button.onclick = () => show(plot.id);
-    sidebar.append(button);
+    list.append(button);
   }
 
-  $("runs").replaceChildren(...state.runs.map((name) => {
-    const item = document.createElement("li");
-    const remove = Object.assign(document.createElement("button"), { textContent: "×", title: `Unload ${name}` });
-    remove.onclick = async () => { state = await api(`/api/runs/${encodeURIComponent(name)}`, { method: "DELETE" }); render(); };
-    item.append(Object.assign(document.createElement("span"), { textContent: name, title: name }), remove);
-    return item;
-  }));
+  $("empty").hidden = runs.length > 0;
+  $("toolbar").hidden = !runs.length;
 
-  const loaded = state.runs.length > 0;
-  $("empty").hidden = loaded;
-  $("toolbar").hidden = !loaded;
-  $("refresh").hidden = !state.refreshable;
-
-  if (!loaded) {
+  if (!runs.length) {
     Plotly.purge($("figure"));
+    $("figure").style.minHeight = "";
     return;
   }
 
-  const available = state.plots.filter((p) => p.available);
+  const available = plots.filter((p) => p.available);
   const next = available.find((p) => p.id === current) || available[0];
-  if (next) show(next.id, $("node").value);
+  if (next) show(next.id, $("node").value, $("panel").value || null);
 }
 
-async function show(id, node) {
-  const plot = state.plots.find((p) => p.id === id);
+// show a plot, or one panel of it enlarged; only the latest request is drawn
+async function show(id, node, panel = null) {
+  const plot = plots.find((p) => p.id === id);
+  const request = ++requests;
   current = id;
-  node = plot.nodes.includes(node) ? node : plot.nodes[0];
+  node = plot.nodes.some(([value]) => value === node) ? node : plot.nodes[0]?.[0];
 
-  for (const button of $("sidebar").querySelectorAll("button")) button.classList.toggle("active", button.dataset.id === id);
+  for (const button of $("plots").querySelectorAll("button")) button.classList.toggle("active", button.dataset.id === id);
   $("title").textContent = plot.title;
   $("node").hidden = !plot.nodes.length;
-  $("node").replaceChildren(...plot.nodes.map((n) => new Option(n, n, false, n === node)));
+  $("node").replaceChildren(...plot.nodes.map(([value, title]) => new Option(title, value, false, value === node)));
 
-  const figure = await api(`/api/plots/${encodeURIComponent(id)}${node ? `?node=${encodeURIComponent(node)}` : ""}`);
-  if (current !== id) return;
+  // the figure lists the full plot's panels, [facet value, title], for the panel select, and the panel of each cell
+  // for a click on it; an enlarged panel stays enlarged in other runs that have it, else the server draws all panels
+  const figure = await api(`/api/plots/${encodeURIComponent(id)}?${query({ run: runs, node, panel })}`);
+  if (request !== requests) return;
+  ({ panels, cells } = figure.layout.meta);
+  if (!panels.some(([value]) => value === panel)) panel = null;
 
-  // fill the window below the toolbar; a taller panel grid keeps its own height and scrolls
-  minHeight = figure.layout.height;
-  figure.layout.height = Math.max(minHeight, fitHeight());
-  Plotly.react($("figure"), figure.data, figure.layout, { responsive: true, displaylogo: false });
+  $("panel").hidden = panels.length < 2;
+  $("panel").replaceChildren(new Option("All panels", ""), ...panels.map(([value, title]) => new Option(title, value, false, value === panel)));
+
+  // plotly fills the space below the toolbar; a taller panel grid keeps its own height and scrolls
+  $("figure").style.minHeight = `${figure.layout.height}px`;
+  Object.assign(figure.layout, size());
+  await Plotly.react($("figure"), figure.data, figure.layout, { displaylogo: false });
+  $("figure").removeAllListeners("plotly_click");
+  if (!panel && panels.length > 1) $("figure").on("plotly_click", enlarge);
 }
 
-function fitHeight() {
-  return window.innerHeight - $("figure").getBoundingClientRect().top - 24;
+// plotly measures its box on the first draw only, so every draw and resize passes the box's size
+function size() {
+  return { width: $("figure").clientWidth, height: $("figure").clientHeight };
+}
+
+// a trace on axis x7 is in the seventh cell
+function enlarge(event) {
+  const axis = event.points[0].data.xaxis || "x";
+  show(current, $("node").value, cells[Number(axis.slice(1) || 1) - 1]);
 }
 
 $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
 $("node").onchange = (e) => show(current, e.target.value);
+$("panel").onchange = (e) => show(current, $("node").value, e.target.value || null);
+window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("node").value); };
 $("refresh").onclick = async (e) => {
   e.target.disabled = true;
 
   try {
-    state = await api("/api/refresh", { method: "POST" });
+    await load(await api("/api/refresh", { method: "POST" }));
     $("message").textContent = "";
   } catch (error) {
     $("message").textContent = error.message;
   }
 
   e.target.disabled = false;
-  render();
 };
+window.onresize = () => { if ($("figure").data) Plotly.relayout($("figure"), size()); };
 window.ondragover = (e) => e.preventDefault();
 window.ondrop = (e) => { e.preventDefault(); upload(e.dataTransfer.files); };
-window.onresize = () => {
-  if ($("figure").data) Plotly.relayout($("figure"), { height: Math.max(minHeight, fitHeight()) });
-};
 
-api("/api/state").then((s) => { state = s; render(); });
+api("/api/state").then(load);

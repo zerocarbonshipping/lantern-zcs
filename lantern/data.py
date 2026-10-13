@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Read Navigate results files and resolve plot specs into tidy series."""
+"""Read Navigate results files, single runs or compiled ensembles, and resolve plot specs into tidy series."""
 
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ import polars as pl
 
 from lantern.config import Layer, Plot
 
-SCHEMA_VERSION = 2
 LABELS = ("kind", "node", "attribute", "key1", "key2")
-KEYS = ("run", "panel", "layer", "label", "date")
+KEYS = ("panel", "layer", "label", "date")
+BAND = (0.05, 0.95)
 
 _VALUE = pl.col("value")
 
@@ -28,31 +28,37 @@ class ResultsFileError(ValueError):
 
 
 @dataclass(frozen=True)
-class Run:
-    """One run: its name, the unit of each attribute and its long results table."""
+class ResultsFile:
+    """A loaded results file: its name, the unit of each attribute, its long table and the samples of each run."""
 
     name: str
     units: dict[str, str]
     frame: pl.DataFrame
+    runs: dict[str, int]
+    compiled: bool
 
 
-def read_run(data: bytes, name: str) -> Run:
-    """Read the content of a results file."""
+def read_file(data: bytes, name: str) -> ResultsFile:
+    """Read a results file: one run, or, compiled, several runs named '<file>/<run>' of one or more samples."""
     try:
         meta = json.loads(pl.read_parquet_metadata(io.BytesIO(data))["navigate"])
-        frame = pl.read_parquet(io.BytesIO(data), columns=[*LABELS, "date", "value"])
+        frame = pl.read_parquet(io.BytesIO(data))
+        compiled = "sample" in frame.columns
+        frame = frame.select(
+            *LABELS, "date", "value",
+            run=pl.lit(f"{name}/") + pl.col("run") if compiled else pl.lit(name),
+            sample=pl.col("sample") if compiled else pl.lit(name),
+        )
+        runs = dict(frame.group_by("run").agg(pl.col("sample").n_unique()).sort("run").rows())
 
     except (KeyError, ValueError, pl.exceptions.PolarsError) as e:
         raise ResultsFileError(f"'{name}' is not a Navigate results file") from e
 
-    if meta.get("schema_version") != SCHEMA_VERSION:
-        raise ResultsFileError(f"'{name}' has results schema {meta.get('schema_version')}, not {SCHEMA_VERSION}")
-
-    return Run(name, meta.get("units", {}), frame.with_columns(run=pl.lit(name)))
+    return ResultsFile(name, meta.get("units", {}), frame, runs, compiled)
 
 
 def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
-    """Results files with run names: a file is named after itself, a file in a folder by its path in the folder."""
+    """Results files with names: a file is named after itself, a file in a folder by its path in the folder."""
     found = []
 
     for path in paths:
@@ -69,11 +75,17 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
 
 
 def prepare(plot: Plot, frame: pl.DataFrame, node: str | None = None) -> pl.DataFrame:
-    """Resolve every layer of a plot into series: run, panel, layer, label, date, value."""
+    """Resolve every layer of a plot of one run into series: panel, layer, label, date, and low, value, high.
+
+    value is the median over the run's samples and low and high the band around it; a run of one
+    sample has all three its value.
+    """
+    samples = frame.select(pl.col("sample").unique())
+
     if plot.split and node is not None:
         frame = frame.filter(pl.col(plot.split) == node)
 
-    layers = [_layer(index, layer, plot, frame) for index, layer in enumerate(plot.layers)]
+    layers = [_layer(index, layer, plot, frame, samples) for index, layer in enumerate(plot.layers)]
 
     return pl.concat(layers).sort(*KEYS)
 
@@ -126,12 +138,26 @@ def _rows(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
     return select(frame, tuple(s for layer in plot.layers for s in layer.series))
 
 
-def _layer(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
-    panel = pl.col(plot.facet).fill_null("") if plot.facet else pl.lit("")
+def _layer(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples: pl.DataFrame) -> pl.DataFrame:
+    if plot.facet == "label":
+        panel = _label(layer)
+
+    else:
+        panel = pl.col(plot.facet).fill_null("") if plot.facet else pl.lit("")
+
     rows = select(frame, layer.series).with_columns(label=_label(layer), panel=panel, layer=pl.lit(index, pl.Int32))
 
-    # a date with no value stays missing, so the line breaks there
-    return rows.group_by(KEYS).agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
+    # one value per sample; a date with no value stays missing, so the line breaks there
+    values = rows.group_by(*KEYS, "sample").agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
+
+    # a sample without the series has it negligible, as the results file leaves such series out
+    grid = values.select(KEYS).unique().join(samples, how="cross")
+    values = grid.join(values.with_columns(present=True), on=[*KEYS, "sample"], how="left")
+    values = values.with_columns(value=pl.when(pl.col("present")).then(_VALUE).otherwise(0.0))
+
+    return values.group_by(KEYS).agg(
+        low=_VALUE.quantile(BAND[0], "linear"), value=_VALUE.median(), high=_VALUE.quantile(BAND[1], "linear"),
+    )
 
 
 def _label(layer: Layer) -> pl.Expr:

@@ -1,11 +1,12 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Serve the page and its JSON API on localhost, one request at a time; the loaded runs are the only state."""
+"""Serve the page and its JSON API on localhost, one request at a time; the loaded files are the only state."""
 
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -17,76 +18,108 @@ import polars as pl
 from plotly.offline import get_plotlyjs
 
 from lantern import data, figures
-from lantern.config import Config
+from lantern.config import Config, Plot
 
 STATIC = files("lantern").joinpath("static")
-TYPES = {".html": "text/html", ".js": "text/javascript", ".css": "text/css"}
+ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/app.css": ("app.css", "text/css")}
 
 
 class Session:
-    """The loaded runs, and what is drawn from them."""
+    """The results files at the sources and those added on the page, and what is drawn from each of their runs."""
 
     def __init__(self, config: Config, sources: list[Path]) -> None:
         self.config = config
         self.sources = sources
-        self.runs: dict[str, data.Run] = {}
-        self._from_sources: set[str] = set()
+        self.loaded: dict[str, data.ResultsFile] = {}
+        self.added: dict[str, data.ResultsFile] = {}
         self._cache: dict = {}
 
+    @property
+    def files(self) -> dict[str, data.ResultsFile]:
+        """Every loaded results file; one added on the page replaces one of the same name at the sources."""
+        return self.loaded | self.added
+
     def add(self, content: bytes, name: str) -> None:
-        """Load a results file, replacing a run of the same name."""
-        self.runs[name] = data.read_run(content, name)
-        self._from_sources.discard(name)
+        """Load a results file added on the page."""
+        self.added[name] = data.read_file(content, name)
         self._cache.clear()
 
-    def refresh(self) -> None:
-        """Reload the results files at the sources as they are on disk now; nothing changes if one is unreadable."""
-        runs = {name: data.read_run(path.read_bytes(), name) for path, name in data.results_files(self.sources)}
+    def refresh(self, progress: Callable[[int, int, str], None] | None = None) -> None:
+        """Load the results files at the sources as they are on disk now; nothing changes if one is unreadable.
 
-        # a run whose file is gone is unloaded; uploaded runs stay
-        for name in self._from_sources - runs.keys():
-            self.runs.pop(name, None)
+        progress, if given, is told before each file how many of how many are read and which comes next.
+        """
+        found = data.results_files(self.sources)
+        files = {}
 
-        self.runs.update(runs)
-        self._from_sources = set(runs)
+        for done, (path, name) in enumerate(found):
+            if progress:
+                progress(done, len(found), name)
+
+            files[name] = data.read_file(path.read_bytes(), name)
+
+        self.loaded = files
         self._cache.clear()
 
     def remove(self, name: str) -> None:
-        """Unload a run."""
-        self.runs.pop(name, None)
+        """Unload a results file."""
+        self.loaded.pop(name, None)
+        self.added.pop(name, None)
         self._cache.clear()
 
     def state(self) -> dict:
-        """The loaded runs and the catalogue, for the page."""
-        plots = self._cached("plots", self._catalogue) if self.runs else []
+        """The loaded files with their runs and samples, for the page."""
+        files = [{"name": f.name, "compiled": f.compiled, "runs": f.runs} for f in self.files.values()]
 
-        return {"runs": list(self.runs), "plots": plots, "refreshable": bool(self.sources)}
+        return {"files": files, "refreshable": bool(self.sources)}
 
-    def figure(self, plot_id: str, node: str | None) -> str:
-        """One figure as Plotly JSON; a split plot shows its first node by default."""
+    def catalogue(self, runs: list[str]) -> list[dict]:
+        """The plots, with whether any of the runs has data for each and the views of a split plot, [value, title]."""
+        def compute() -> list[dict]:
+            frames = [self._frame(run) for run in runs]
+            return [
+                {"id": p.id, "title": p.title, "section": p.section, "available": any(data.has_data(p, f) for f in frames),
+                 "nodes": [[n, self.config.labels.get(n, n)] for n in self._nodes(p, runs)]}
+                for p in self.config.plots
+            ]
+
+        return self._cached(("catalogue", *runs), compute)
+
+    def figure(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> str:
+        """One figure of the runs as Plotly JSON, or one panel of it enlarged; a split plot shows its first node by default."""
         plot = self.config.plot(plot_id)
-        node = node or next(iter(data.split_nodes(plot, self._frame())), None)
+        node = node or next(iter(self._nodes(plot, runs)), None)
 
         def draw() -> str:
-            series = data.prepare(plot, self._frame(), node)
-            return figures.build(plot, series, data.unit(plot, self._units()), self.config).to_json()
+            series = pl.concat([self._series(plot, run, node) for run in runs])
+            unit = data.unit(plot, self._units())
+            return figures.build(plot, series, unit, self.config, self._names(runs), panel).to_json()
 
-        return self._cached((plot_id, node), draw)
+        return self._cached((plot_id, *runs, node, panel), draw)
 
-    def _catalogue(self) -> list[dict]:
-        frame = self._frame()
+    def _series(self, plot: Plot, run: str, node: str | None) -> pl.DataFrame:
+        def compute() -> pl.DataFrame:
+            return data.prepare(plot, self._frame(run), node).with_columns(run=pl.lit(run))
 
-        return [
-            {"id": p.id, "title": p.title, "section": p.section, "available": data.has_data(p, frame),
-             "nodes": data.split_nodes(p, frame)}
-            for p in self.config.plots
-        ]
+        return self._cached(("series", plot.id, run, node), compute)
 
-    def _frame(self) -> pl.DataFrame:
-        return self._cached("frame", lambda: pl.concat([run.frame for run in self.runs.values()]))
+    def _nodes(self, plot: Plot, runs: list[str]) -> list[str]:
+        return sorted({n for run in runs for n in data.split_nodes(plot, self._frame(run))})
+
+    def _names(self, runs: list[str]) -> dict[str, str]:
+        """Each run's name in a figure: that within its compiled file, or the file's; the full one where two are alike."""
+        short = {run: run.removeprefix(f"{f.name}/") for f in self.files.values() for run in f.runs if run in runs}
+        names = list(short.values())
+
+        return {run: short[run] if names.count(short[run]) == 1 else run for run in runs}
+
+    def _frame(self, run: str) -> pl.DataFrame:
+        file = next(f for f in self.files.values() if run in f.runs)
+
+        return self._cached(("frame", run), lambda: file.frame.filter(pl.col("run") == run))
 
     def _units(self) -> dict[str, str]:
-        return {k: v for run in self.runs.values() for k, v in run.units.items()}
+        return {k: v for f in self.files.values() for k, v in f.units.items()}
 
     def _cached(self, key, compute):
         if key not in self._cache:
@@ -105,24 +138,27 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         url = urlparse(self.path)
-        path = "/static/index.html" if url.path == "/" else unquote(url.path)
-        node = parse_qs(url.query).get("node", [None])[0]
-        asset = path.removeprefix("/static/")
+        path = unquote(url.path)
+        params = parse_qs(url.query)
+        query = {k: v[0] for k, v in params.items()}
+        runs = params.get("run", [])
 
         if path == "/plotly.js":
             self._send(_plotly_js(), "text/javascript")
 
-        elif path.startswith("/static/") and ".." not in asset and STATIC.joinpath(asset).is_file():
-            self._send(STATIC.joinpath(asset).read_bytes(), TYPES.get(asset[asset.rfind("."):], "text/plain"))
+        elif path in ASSETS:
+            name, content_type = ASSETS[path]
+            self._send(STATIC.joinpath(name).read_bytes(), content_type)
 
         elif path == "/api/state":
             self._json(self.session.state())
 
+        elif path == "/api/catalogue":
+            self._json(self.session.catalogue(runs))
+
         elif path.startswith("/api/plots/"):
-            try:
-                self._send(self.session.figure(path.removeprefix("/api/plots/"), node).encode(), "application/json")
-            except KeyError:
-                self._json({"error": "unknown plot"}, HTTPStatus.NOT_FOUND)
+            figure = self.session.figure(path.removeprefix("/api/plots/"), runs, query.get("node"), query.get("panel"))
+            self._send(figure.encode(), "application/json")
 
         else:
             self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
@@ -133,8 +169,8 @@ class _Handler(BaseHTTPRequestHandler):
         try:
             if path == "/api/refresh":
                 self.session.refresh()
-            elif path == "/api/runs":
-                name = unquote(self.headers.get("X-Filename", "run"))
+            elif path == "/api/files":
+                name = unquote(self.headers["X-Filename"])
                 self.session.add(self.rfile.read(int(self.headers["Content-Length"])), name)
             else:
                 self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
@@ -147,7 +183,7 @@ class _Handler(BaseHTTPRequestHandler):
         self._json(self.session.state())
 
     def do_DELETE(self) -> None:
-        self.session.remove(unquote(urlparse(self.path).path).removeprefix("/api/runs/"))
+        self.session.remove(unquote(urlparse(self.path).path).removeprefix("/api/files/"))
         self._json(self.session.state())
 
     def _json(self, value: object, status: HTTPStatus = HTTPStatus.OK) -> None:

@@ -1,11 +1,18 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Draw prepared series as a Plotly figure: one panel per facet value, and per run when several are loaded."""
+"""Draw the prepared series of one or more runs as a Plotly figure, one panel per facet value.
+
+An ensemble's lines and areas are its median with a band between the percentiles of its samples; stacks show the
+medians only, as percentiles do not add up. Several runs share the panels in a colour each where colour tells nothing
+else, that is where no panel's layer has more than one label; stacks and the other plots get a column of panels per run.
+"""
 
 from __future__ import annotations
 
+import itertools
 import math
+import re
 from collections.abc import Callable
 
 import plotly.graph_objects as go
@@ -13,41 +20,84 @@ import polars as pl
 from plotly.subplots import make_subplots
 
 from lantern.config import Config, Plot
-
-SEPARATOR = " - "
+from lantern.data import BAND
 
 # unit head to (base unit, power of ten of the head); counts and money keep their unit, plotly's ticks scale them
 _SCALABLE = {"GJ": ("J", 9), "MJ": ("J", 6), "J": ("J", 0), "t": ("t", 0), "tCO2e": ("tCO2e", 0), "MW": ("W", 6), "W": ("W", 0)}
 _PREFIXES = {3: "k", 6: "M", 9: "G", 12: "T", 15: "P", 18: "E"}
 
 
-def build(plot: Plot, series: pl.DataFrame, unit: str, config: Config) -> go.Figure:
-    """Draw one plot."""
-    divisor, unit = scale_unit(series.select(pl.col("value").abs().max()).item() or 0.0, unit)
-    series = series.with_columns(value=pl.col("value") / divisor)
-
-    # a panel is a facet value and a run; the run is named only when several are loaded
-    several = series.get_column("run").n_unique() > 1
+def build(
+    plot: Plot, series: pl.DataFrame, unit: str, config: Config, runs: dict[str, str], panel: str | None = None,
+) -> go.Figure:
+    """Draw one plot of the runs, named in order in runs, or only its panel of the given facet value, enlarged."""
     rank = _rank(config)
-    panels = sorted(series.select("panel", "run").unique().rows(), key=lambda p: (rank(p[0]), p[1]))
-    titles = [SEPARATOR.join(filter(None, (config.labels.get(p, p), run if several else ""))) for p, run in panels]
+    present = set(series.get_column("run").unique().to_list())
+    runs = {run: name for run, name in runs.items() if run in present}
+    panels = sorted(series.get_column("panel").unique().to_list(), key=rank)
     labels = sorted(series.get_column("label").unique().to_list())
     style = config.style
-    free = iter(style.palette * (len(labels) // len(style.palette) + 1))
-    colors = {label: style.colors.get(label) or next(free) for label in labels}
-    figure = _grid(titles, config)
+    overlay = len(runs) > 1 and _overlays(plot, series)
+    tiled = len(runs) > 1 and not overlay
+    # overlaid, a panel of one label needs only the runs told apart, in the legend too
+    by_run = overlay and _most_labels(series, "panel") <= 1
+
+    if overlay:
+        colors = dict(zip(runs, itertools.cycle(style.palette)))
+
+    else:
+        free = itertools.cycle(style.palette)
+        colors = {label: style.colors.get(label) or next(free) for label in labels}
+
+    # every panel, [facet value, title], for the page to enlarge one; an enlarged panel keeps the colours
+    meta = [[p, config.labels.get(p, p)] for p in panels]
+
+    if panel in panels:
+        series, panels = series.filter(pl.col("panel") == panel), [panel]
+
+    divisor, unit = scale_unit(series.select(pl.col("value").abs().max()).item() or 0.0, unit)
+    series = series.with_columns(pl.col("low", "value", "high") / divisor)
+
+    # a cell per panel, or tiled per panel and run: a row per panel and a column per run, sharing the y axis
+    columns = list(runs) if tiled else [None]
+    cells = [(p, run) for p in panels for run in columns]
+    rows, cols = (len(panels), len(columns)) if tiled and len(panels) > 1 else _shape(len(cells))
+    titles = [" · ".join(filter(None, (config.labels.get(p, p), runs.get(run)))) for p, run in cells]
+    figure = _grid(titles, rows, cols, config, ("rows" if len(panels) > 1 else "all") if tiled else False)
+    # the page's panel select lists the panels, and a click on a cell enlarges its panel
+    figure.update_layout(meta={"panels": meta, "cells": [p for p, _ in cells]})
     shown = set()
 
-    # traces go in panel, layer and label order, which sets the stacking and the legend
+    # traces go in panel, run, layer and label order, which sets the stacking and the legend
     groups = series.partition_by("panel", "run", "layer", "label", as_dict=True)
-    order = sorted(groups, key=lambda k: (panels.index(k[:2]), k[2], rank(k[3])))
+    order = sorted(groups, key=lambda k: (panels.index(k[0]), list(runs).index(k[1]), k[2], rank(k[3])))
 
     for panel, run, layer_index, label in order:
         line, layer = groups[panel, run, layer_index, label], plot.layers[layer_index]
+        cell = cells.index((panel, run if tiled else None))
+        row, col = cell // cols + 1, cell % cols + 1
+        name, x = config.labels.get(label, label), line.get_column("date").to_list()
+        # overlaid, a run has a colour, and its series are named after it
+        group, color = (f"{label}|{run}", colors[run]) if overlay else (label, colors[label])
+
+        if by_run:
+            group, name = run, runs[run]
+
+        elif overlay:
+            name = f"{name} · {runs[run]}"
+
+        # an ensemble's band, but not in a stack: the upper percentile, then the lower one filled up to it
+        if layer.kind != "stack" and (line.get_column("low") != line.get_column("high")).any():
+            for column, quantile in (("high", BAND[1]), ("low", BAND[0])):
+                figure.add_trace(go.Scatter(
+                    x=x, y=line.get_column(column).to_list(), mode="lines", name=f"{name} {quantile:.0%}",
+                    fill="tonexty" if column == "low" else None, legendgroup=group, showlegend=False,
+                    line={"color": color, "width": 0},
+                ), row=row, col=col)
+
         trace = go.Scatter(
-            x=line.get_column("date").to_list(), y=line.get_column("value").to_list(), mode="lines",
-            name=config.labels.get(label, label), legendgroup=label, showlegend=label not in shown,
-            line={"color": colors[label], "width": style.line_width, "dash": layer.dash},
+            x=x, y=line.get_column("value").to_list(), mode="lines", name=name, legendgroup=group,
+            showlegend=group not in shown, line={"color": color, "width": style.line_width, "dash": layer.dash},
         )
 
         if layer.kind == "stack":
@@ -56,17 +106,26 @@ def build(plot: Plot, series: pl.DataFrame, unit: str, config: Config) -> go.Fig
         elif layer.kind == "area":
             trace.update(fill="tozeroy")
 
-        shown.add(label)
-        row, col = _cell(panels.index((panel, run)), len(panels))
+        shown.add(group)
         figure.add_trace(trace, row=row, col=col)
 
     figure.update_layout(
-        template=style.template, hovermode="x unified", legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
+        template="plotly_white", hovermode="x unified", legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
     )
     figure.update_yaxes(rangemode=plot.rangemode)
     figure.update_yaxes(title_text=unit, col=1)
 
     return figure
+
+
+def _overlays(plot: Plot, series: pl.DataFrame) -> bool:
+    """Whether runs can share panels, a colour each: no stack, and no panel's layer has more than one label."""
+    return not any(layer.kind == "stack" for layer in plot.layers) and _most_labels(series, "panel", "layer") <= 1
+
+
+def _most_labels(series: pl.DataFrame, *keys: str) -> int:
+    """The most labels a run has in one group of the keys."""
+    return series.group_by("run", *keys).agg(pl.col("label").n_unique()).get_column("label").max() or 0
 
 
 def scale_unit(magnitude: float, unit: str) -> tuple[float, str]:
@@ -82,24 +141,32 @@ def scale_unit(magnitude: float, unit: str) -> tuple[float, str]:
     return 10.0 ** (prefix - power), _PREFIXES.get(prefix, "") + base + slash + tail
 
 
-def _grid(titles: list[str], config: Config) -> go.Figure:
-    rows, cols = _shape(len(titles))
-    figure = make_subplots(rows=rows, cols=cols, subplot_titles=titles, shared_xaxes=True)
+def _grid(titles: list[str], rows: int, cols: int, config: Config, shared_y: str | bool) -> go.Figure:
+    width = 140 // cols  # characters a title line takes before it would run into its neighbour's
+    titles = [_wrap(title, width) for title in titles]
+    figure = make_subplots(rows=rows, cols=cols, subplot_titles=titles, shared_xaxes=True, shared_yaxes=shared_y)
     figure.update_layout(height=rows * config.style.panel_height)
 
     return figure
+
+
+def _wrap(title: str, width: int) -> str:
+    """Break a long title after underscores and spaces into lines of about width characters."""
+    lines = [""]
+
+    for part in re.split(r"(?<=[_ ])", title):
+        if lines[-1] and len(lines[-1]) + len(part) > width:
+            lines.append("")
+
+        lines[-1] += part
+
+    return "<br>".join(line.rstrip() for line in lines)
 
 
 def _shape(count: int) -> tuple[int, int]:
     rows = max(1, round(math.sqrt(count)))
 
     return rows, math.ceil(count / rows)
-
-
-def _cell(index: int, count: int) -> tuple[int, int]:
-    cols = _shape(count)[1]
-
-    return index // cols + 1, index % cols + 1
 
 
 def _rank(config: Config) -> Callable[[str], tuple[int, str]]:

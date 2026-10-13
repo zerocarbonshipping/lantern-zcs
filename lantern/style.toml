@@ -11,8 +11,7 @@ palette = [
 ]
 
 [chart]
-template = "plotly_white"   # plotly template
-panel_height = 280          # px, per row of panels; the page grows a figure to fill the window
+panel_height = 280  # px, per row of panels; the page grows a figure to fill the window
 line_width = 2.0
 
 # Center colours used below, by palette and shade (0 lightest, 6 darkest); palette and

@@ -6,10 +6,8 @@
 from __future__ import annotations
 
 import tomllib
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from importlib.resources import files
-
-_TUPLES = ("series",)
 
 
 @dataclass(frozen=True)
@@ -44,7 +42,6 @@ class Style:
 
     colors: dict[str, str]
     palette: tuple[str, ...]
-    template: str = "plotly_white"
     panel_height: int = 280
     line_width: float = 2.0
 
@@ -73,7 +70,7 @@ def load_config() -> Config:
     swatches = style.get("swatches", {})
 
     return Config(
-        plots=tuple(_plot(entry) for entry in plots["plots"]),
+        plots=tuple(plot for entry in plots["plots"] for plot in _plots(entry)),
         labels=plots.get("labels", {}),
         order=tuple(plots.get("order", ())),
         style=Style(
@@ -86,6 +83,21 @@ def load_config() -> Config:
 
 def _read(name: str) -> dict:
     return tomllib.loads(files("lantern").joinpath(name).read_text("utf-8"))
+
+
+def _plots(raw: dict) -> list[Plot]:
+    """An entry's plot; one with unstack = true is first drawn as lines, a panel per label, then as its stack."""
+    plot = _plot(raw)
+
+    if not raw.get("unstack"):
+        return [plot]
+
+    # a facet the stack has moves to the views, as the lines' panels are the labels
+    layers = tuple(replace(layer, kind="line") if layer.kind == "stack" else layer for layer in plot.layers)
+    lines = replace(plot, layers=layers, facet="label", split=plot.split or plot.facet)
+    stacked = replace(plot, id=f"{plot.id}_stacked", title=f"{plot.title} (Stacked)")
+
+    return [lines, stacked]
 
 
 def _plot(raw: dict) -> Plot:
@@ -105,7 +117,8 @@ def _plot(raw: dict) -> Plot:
 
 
 def _layer(raw: dict) -> Layer:
-    values = {k: ((v,) if isinstance(v, str) else tuple(v)) if k in _TUPLES else v for k, v in raw.items()}
+    series = raw["series"]
+    values = {**raw, "series": (series,) if isinstance(series, str) else tuple(series)}
 
     if values.get("label") == "none":
         values["label"] = None

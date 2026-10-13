@@ -8,9 +8,9 @@ SPDX-License-Identifier: Apache-2.0
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lantern</title>
-  <link rel="stylesheet" href="/static/app.css">
+  <link rel="stylesheet" href="/app.css">
   <script src="/plotly.js" defer></script>
-  <script src="/static/app.js" defer></script>
+  <script src="/app.js" defer></script>
 </head>
 <body>
   <header>
@@ -20,14 +20,14 @@ SPDX-License-Identifier: Apache-2.0
     <button id="refresh" class="button" title="Reload the results files Lantern was opened with from disk" hidden>Refresh</button>
   </header>
   <div class="layout">
-    <nav id="sidebar"></nav>
+    <nav><div id="plots"></div></nav>
     <main>
       <p id="empty" class="empty">Drop Navigate results files here, or add them above.</p>
-      <div id="toolbar" hidden><h2 id="title"></h2><select id="node" hidden></select></div>
+      <div id="toolbar" hidden><h2 id="title"></h2><select id="node" hidden></select><select id="panel" hidden></select></div>
       <div id="figure"></div>
       <p id="message"></p>
     </main>
-    <aside><b>Runs</b><ul id="runs"></ul></aside>
+    <aside><h4>Runs</h4><p class="hint">Ctrl-click runs to compare them</p><ul id="runs"></ul></aside>
   </div>
 </body>
 </html>

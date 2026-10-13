@@ -20,11 +20,21 @@ Navigate run writes.
   added on the page, and a Refresh button reloads PATH from disk.
 - `plots.toml` declares what is plotted and `style.toml` how it looks, in the
   Center's colours.
+- Clicking a panel of a multi-panel plot shows it alone; a select in the
+  toolbar or Escape goes back to all panels. Long panel titles wrap.
+- Ensembles: Lantern opens the compiled results file of a Horizon study, with
+  a run per scenario and its samples, and draws an ensemble's lines and areas
+  as the median with a 5th to 95th percentile band, and stacks as medians.
+  Each stacked plot also comes as lines, one panel per stacked series with
+  its band, followed by the stack as "<title> (Stacked)".
+  Runs are listed in the sidebar, compiled files marked; Ctrl-click compares
+  runs, overlaid in a colour each, or for stacks and plots that tell series
+  apart by colour, in a column of panels per run with a shared y axis.
 
 ### Removed
 - The report CSV input, all command-line options, the HTML and PNG outputs,
-  quantile bands and representative selection, and the pandas, numpy,
-  kaleido and tqdm dependencies.
+  representative selection, and the pandas, numpy, kaleido and tqdm
+  dependencies.
 
 ## [1.0.0] - 2026-08-18
 

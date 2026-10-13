@@ -8,11 +8,15 @@ type: software
 license: Apache-2.0
 version: 2.0.0
 repository-code: "https://github.com/zerocarbonshipping/lantern-zcs"
-date-released: 2026-08-18
+date-released: 2026-10-13
 authors:
   - given-names: Mathias
     family-names: Hintze
     email: mathias.hintze@zerocarbonshipping.com
+    affiliation: "Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping"
+  - given-names: Julius
+    family-names: Thomas
+    email: julius.thomas@zerocarbonshipping.com
     affiliation: "Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping"
   - given-names: "Frederik Winkel"
     family-names: Lehn
