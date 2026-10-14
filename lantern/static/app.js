@@ -62,8 +62,9 @@ async function upload(list) {
   if (state) await load(state);
 }
 
-function runButton(id, text) {
-  const title = `${text}\nCtrl-click to compare it with the selected runs`;
+function runButton(id, text, representative) {
+  const sample = representative ? `\nRepresentative sample: ${representative}` : "";
+  const title = `${text}${sample}\nCtrl-click to compare it with the selected runs`;
   const button = Object.assign(document.createElement("button"), { textContent: text, title, className: "run" });
   button.classList.toggle("active", runs.includes(id));
   button.onclick = (event) => pick(id, event);
@@ -83,7 +84,7 @@ function render() {
       item.className = "compiled";
       head.append(tag, Object.assign(document.createElement("span"), { textContent: file.name, title: file.name }), remove);
       item.append(head, ...Object.entries(file.runs).map(([id, samples]) =>
-        runButton(id, `${id.slice(file.name.length + 1)} · ${samples} sample${samples > 1 ? "s" : ""}`)));
+        runButton(id, `${id.slice(file.name.length + 1)} · ${samples} sample${samples > 1 ? "s" : ""}`, file.representatives[id])));
     } else {
       head.append(runButton(Object.keys(file.runs)[0], file.name), remove);
       item.append(head);

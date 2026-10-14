@@ -16,15 +16,19 @@ Navigate run writes.
 
 ### Added
 - `lantern [PATH ...]` opens the viewer in the browser with the results files
-  at PATH; a folder loads every `.parquet` file below it. Files can also be
-  added on the page, and a Refresh button reloads PATH from disk.
+  at PATH; a folder loads every `.parquet` file below it, but not below a
+  folder holding a compiled results file, whose samples it already has.
+  Files can also be added on the page, and a Refresh button reloads PATH
+  from disk.
 - `plots.toml` declares what is plotted and `style.toml` how it looks, in the
   Center's colours.
 - Clicking a panel of a multi-panel plot shows it alone; a select in the
   toolbar or Escape goes back to all panels. Long panel titles wrap.
 - Ensembles: Lantern opens the compiled results file of a Horizon study, with
   a run per scenario and its samples, and draws an ensemble's lines and areas
-  as the median with a 5th to 95th percentile band, and stacks as medians.
+  as the median with a 5th to 95th percentile band and a dotted line of its
+  representative sample, and stacks as that sample. The representative is
+  chosen as in Lantern 1, from the plots `plots.toml` gives a `weight`.
   Each stacked plot also comes as lines, one panel per stacked series with
   its band, followed by the stack as "<title> (Stacked)".
   Runs are listed in the sidebar, compiled files marked; Ctrl-click compares
@@ -33,7 +37,7 @@ Navigate run writes.
 
 ### Removed
 - The report CSV input, all command-line options, the HTML and PNG outputs,
-  representative selection, and the pandas, numpy, kaleido and tqdm
+  manual and non-median representatives, the representatives CSV, and the pandas, numpy, kaleido and tqdm
   dependencies.
 
 ## [1.0.0] - 2026-08-18

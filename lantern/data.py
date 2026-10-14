@@ -8,6 +8,7 @@ from __future__ import annotations
 import io
 import json
 import re
+import sys
 from dataclasses import dataclass
 from functools import reduce
 from pathlib import Path
@@ -63,7 +64,7 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
 
     for path in paths:
         if path.is_dir():
-            found.extend((f, f.relative_to(path).with_suffix("").as_posix()) for f in sorted(path.rglob("*.parquet")))
+            found.extend((f, f.relative_to(path).with_suffix("").as_posix()) for f in _folder_files(path))
 
         elif path.is_file():
             found.append((path, path.stem))
@@ -74,20 +75,65 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
     return found
 
 
-def prepare(plot: Plot, frame: pl.DataFrame, node: str | None = None) -> pl.DataFrame:
-    """Resolve every layer of a plot of one run into series: panel, layer, label, date, and low, value, high.
+def _folder_files(folder: Path) -> list[Path]:
+    """The .parquet files in a folder and below, but not below a compiled file, which holds the samples there."""
+    files = sorted(folder.glob("*.parquet"))
 
-    value is the median over the run's samples and low and high the band around it; a run of one
-    sample has all three its value.
+    if any(_is_compiled(f) for f in files):
+        if any(sub.is_dir() for sub in folder.iterdir()):
+            print(f"Skipping the subfolders of {folder}: it holds a compiled results file", file=sys.stderr)
+
+        return files
+
+    for sub in sorted(p for p in folder.iterdir() if p.is_dir()):
+        files.extend(_folder_files(sub))
+
+    return files
+
+
+def _is_compiled(path: Path) -> bool:
+    """Whether a file is a compiled results file, from the sample list Horizon writes into its metadata."""
+    try:
+        return "samples" in json.loads(pl.read_parquet_metadata(path)["navigate"])
+
+    except (KeyError, ValueError, pl.exceptions.PolarsError):
+        return False
+
+
+def prepare(plot: Plot, frame: pl.DataFrame, node: str | None = None, representative: str | None = None) -> pl.DataFrame:
+    """Resolve every layer of a plot of one run into series: panel, layer, label, date, low, value, high, representative.
+
+    value is the median over the run's samples, low and high the band around it and representative the
+    value of the representative sample, if given; a stack has all three the representative's value, as
+    medians do not add up. A run of one sample has all its value.
     """
     samples = frame.select(pl.col("sample").unique())
 
     if plot.split and node is not None:
         frame = frame.filter(pl.col(plot.split) == node)
 
-    layers = [_layer(index, layer, plot, frame, samples) for index, layer in enumerate(plot.layers)]
+    pick = pl.col("sample") == representative
+    layers = []
+
+    for index, layer in enumerate(plot.layers):
+        values = _samples(index, layer, plot, frame, samples).group_by(KEYS).agg(
+            low=_VALUE.quantile(BAND[0], "linear"), value=_VALUE.median(), high=_VALUE.quantile(BAND[1], "linear"),
+            representative=_VALUE.filter(pick).first(),
+        )
+
+        if layer.kind == "stack" and representative is not None:
+            values = values.with_columns(low="representative", value="representative", high="representative")
+
+        layers.append(values)
 
     return pl.concat(layers).sort(*KEYS)
+
+
+def per_sample(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
+    """Every layer of a plot of one run, over all its views, as series per sample: panel, layer, label, date, sample, value."""
+    samples = frame.select(pl.col("sample").unique())
+
+    return pl.concat([_samples(index, layer, plot, frame, samples) for index, layer in enumerate(plot.layers)])
 
 
 def unit(plot: Plot, units: dict[str, str]) -> str:
@@ -138,7 +184,7 @@ def _rows(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
     return select(frame, tuple(s for layer in plot.layers for s in layer.series))
 
 
-def _layer(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples: pl.DataFrame) -> pl.DataFrame:
+def _samples(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples: pl.DataFrame) -> pl.DataFrame:
     if plot.facet == "label":
         panel = _label(layer)
 
@@ -153,11 +199,8 @@ def _layer(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples: p
     # a sample without the series has it negligible, as the results file leaves such series out
     grid = values.select(KEYS).unique().join(samples, how="cross")
     values = grid.join(values.with_columns(present=True), on=[*KEYS, "sample"], how="left")
-    values = values.with_columns(value=pl.when(pl.col("present")).then(_VALUE).otherwise(0.0))
 
-    return values.group_by(KEYS).agg(
-        low=_VALUE.quantile(BAND[0], "linear"), value=_VALUE.median(), high=_VALUE.quantile(BAND[1], "linear"),
-    )
+    return values.select(*KEYS, "sample", value=pl.when(pl.col("present")).then(_VALUE).otherwise(0.0))
 
 
 def _label(layer: Layer) -> pl.Expr:

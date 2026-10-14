@@ -3,9 +3,10 @@
 
 """Draw the prepared series of one or more runs as a Plotly figure, one panel per facet value.
 
-An ensemble's lines and areas are its median with a band between the percentiles of its samples; stacks show the
-medians only, as percentiles do not add up. Several runs share the panels in a colour each where colour tells nothing
-else, that is where no panel's layer has more than one label; stacks and the other plots get a column of panels per run.
+An ensemble's lines and areas are its median with a band between the percentiles of its samples and a dotted line of
+its representative sample; stacks show the representative sample, as medians and percentiles do not add up. Several
+runs share the panels in a colour each where colour tells nothing else, that is where no panel's layer has more than
+one label; stacks and the other plots get a column of panels per run.
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ def build(
         series, panels = series.filter(pl.col("panel") == panel), [panel]
 
     divisor, unit = scale_unit(series.select(pl.col("value").abs().max()).item() or 0.0, unit)
-    series = series.with_columns(pl.col("low", "value", "high") / divisor)
+    series = series.with_columns(pl.col("low", "value", "high", "representative") / divisor)
 
     # a cell per panel, or tiled per panel and run: a row per panel and a column per run, sharing the y axis
     columns = list(runs) if tiled else [None]
@@ -87,7 +88,9 @@ def build(
             name = f"{name} · {runs[run]}"
 
         # an ensemble's band, but not in a stack: the upper percentile, then the lower one filled up to it
-        if layer.kind != "stack" and (line.get_column("low") != line.get_column("high")).any():
+        banded = (line.get_column("low") != line.get_column("high")).any()
+
+        if layer.kind != "stack" and banded:
             for column, quantile in (("high", BAND[1]), ("low", BAND[0])):
                 figure.add_trace(go.Scatter(
                     x=x, y=line.get_column(column).to_list(), mode="lines", name=f"{name} {quantile:.0%}",
@@ -108,6 +111,14 @@ def build(
 
         shown.add(group)
         figure.add_trace(trace, row=row, col=col)
+
+        # the representative sample over the band, after it so as not to break the band's fill
+        if layer.kind != "stack" and banded and line.get_column("representative").is_not_null().any():
+            figure.add_trace(go.Scatter(
+                x=x, y=line.get_column("representative").to_list(), mode="lines", name=f"{name} representative",
+                legendgroup=group, showlegend=False, hoverinfo="skip",
+                line={"color": color, "width": style.line_width / 2, "dash": "dot"},
+            ), row=row, col=col)
 
     figure.update_layout(
         template="plotly_white", hovermode="x unified", legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},

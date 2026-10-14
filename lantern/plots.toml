@@ -10,13 +10,15 @@
 # page), rangemode = "normal" for negative values, and unstack = true for a
 # stack plot to come first as lines, one panel per label with its band, then as
 # "<title> (Stacked)", id "<id>_stacked"; a facet it has becomes the lines' split.
+# weight > 0 counts the plot's series in choosing an ensemble's representative
+# sample, the one closest to the median throughout (see representative.py).
 #
 # Layer keys, on the plot or in [[plots.layers]]:
 #   series      "kind/node/attribute/key1/key2", * as wildcard, missing parts
 #               match all; the global profile has the empty node: "global//x"
 #   kind        line (default), stack or area; an ensemble's lines and areas
-#               get a band from the 5th to the 95th percentile, its stacks show
-#               the medians
+#               get a band from the 5th to the 95th percentile and a dotted
+#               line of the representative sample, its stacks show that sample
 #   label       key1 (default), key2, node, attribute, or "none" to sum all
 #   name        series name for label = "none" or a series without key
 #   scale       factor the values are multiplied by, e.g. -1 to draw below
@@ -408,6 +410,7 @@ plant_methanol_electro_soec_middle_east = "e-methanol (SOEC), Middle East"
 id = "global_emission_absolute"
 section = "Global"
 title = "WTW emissions"
+weight = 0.4
 label = "none"
 series = "global//total_equivalent_wtw"
 
@@ -432,6 +435,7 @@ id = "global_fuel_type_consumed"
 section = "Global"
 title = "Fuel consumed by fuel type"
 unstack = true
+weight = 0.2
 kind = "stack"
 name = "shore_power"
 series = ["global//fuel_type_energy", "global//shore_power_energy"]
@@ -470,6 +474,7 @@ id = "global_installed_power"
 section = "Global"
 title = "Installed power by fuel type"
 unstack = true
+weight = 0.3
 kind = "stack"
 series = "global//installed_power"
 
@@ -533,6 +538,7 @@ id = "global_expenses"
 section = "Global"
 title = "Expenses"
 unstack = true
+weight = 0.1
 kind = "stack"
 label = "attribute"
 series = [

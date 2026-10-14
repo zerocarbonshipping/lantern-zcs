@@ -34,6 +34,7 @@ class Plot:
     facet: str | None = None
     split: str | None = None
     rangemode: str = "tozero"
+    weight: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -95,7 +96,8 @@ def _plots(raw: dict) -> list[Plot]:
     # a facet the stack has moves to the views, as the lines' panels are the labels
     layers = tuple(replace(layer, kind="line") if layer.kind == "stack" else layer for layer in plot.layers)
     lines = replace(plot, layers=layers, facet="label", split=plot.split or plot.facet)
-    stacked = replace(plot, id=f"{plot.id}_stacked", title=f"{plot.title} (Stacked)")
+    # the lines' weight alone counts in choosing the representative
+    stacked = replace(plot, id=f"{plot.id}_stacked", title=f"{plot.title} (Stacked)", weight=0.0)
 
     return [lines, stacked]
 
@@ -113,6 +115,7 @@ def _plot(raw: dict) -> Plot:
         facet=raw.get("facet"),
         split=raw.get("split"),
         rangemode=raw.get("rangemode", "tozero"),
+        weight=float(raw.get("weight", 0.0)),
     )
 
 

@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 import polars as pl
 from plotly.offline import get_plotlyjs
 
-from lantern import data, figures
+from lantern import data, figures, representative
 from lantern.config import Config, Plot
 
 STATIC = files("lantern").joinpath("static")
@@ -68,8 +68,11 @@ class Session:
         self._cache.clear()
 
     def state(self) -> dict:
-        """The loaded files with their runs and samples, for the page."""
-        files = [{"name": f.name, "compiled": f.compiled, "runs": f.runs} for f in self.files.values()]
+        """The loaded files with their runs, samples and the representative sample of each ensemble, for the page."""
+        files = [{
+            "name": f.name, "compiled": f.compiled, "runs": f.runs,
+            "representatives": {run: self._representative(run) for run in f.runs},
+        } for f in self.files.values()]
 
         return {"files": files, "refreshable": bool(self.sources)}
 
@@ -99,9 +102,12 @@ class Session:
 
     def _series(self, plot: Plot, run: str, node: str | None) -> pl.DataFrame:
         def compute() -> pl.DataFrame:
-            return data.prepare(plot, self._frame(run), node).with_columns(run=pl.lit(run))
+            return data.prepare(plot, self._frame(run), node, self._representative(run)).with_columns(run=pl.lit(run))
 
         return self._cached(("series", plot.id, run, node), compute)
+
+    def _representative(self, run: str) -> str | None:
+        return self._cached(("representative", run), lambda: representative.choose(self.config.plots, self._frame(run)))
 
     def _nodes(self, plot: Plot, runs: list[str]) -> list[str]:
         return sorted({n for run in runs for n in data.split_nodes(plot, self._frame(run))})
