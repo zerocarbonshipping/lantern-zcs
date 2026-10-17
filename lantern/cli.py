@@ -118,9 +118,11 @@ def generate_init_config(csv_path: Path) -> None:
     df = pd.read_csv(csv_path, header=None, low_memory=False)
     nrows, ncols = df.shape
 
-    # Auto-detect header row (first row with mostly non-numeric, non-empty strings)
+    # Auto-detect header row (first row with mostly non-numeric, non-empty
+    # strings). Row 0 is the sample-label row by definition — it is what
+    # scenario matching reads — so the scan starts at row 1.
     header_row = 2  # default
-    for r in range(min(10, nrows)):
+    for r in range(1, min(10, nrows)):
         row_vals = [str(v).strip() for v in df.iloc[r, 1:] if pd.notna(v)]
         if not row_vals:
             continue
