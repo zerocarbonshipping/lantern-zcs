@@ -59,19 +59,28 @@ each with its number of samples, to select or compare; a run's tooltip names
 its representative sample.
 
 The representative sample is the one closest to the median throughout. At
-every date, the series of each plot with a `weight` in `plots.toml` rank the
+every date, the series of each plot with a `weight` in `plots.yaml` rank the
 samples as percentiles; a sample scores its mean squared distance from the
 50th percentile, averaged over each plot's series and weighted over the plots,
 and the lowest score wins. By default the weights are those of Lantern 1:
 emissions 0.4, installed power 0.3, fuel consumed by fuel type 0.2 and
 expenses 0.1.
 
-Two files in the package configure Lantern:
+Two YAML files in the package configure Lantern:
 
-- [`lantern/plots.toml`](lantern/plots.toml) says what is plotted: the series
-  of each plot, display names, units and axes. Its header lists the keys.
-- [`lantern/style.toml`](lantern/style.toml) says how it looks: the colours
-  (the Center's palette by default) and chart settings.
+- [`lantern/plots.yaml`](lantern/plots.yaml) says what is plotted: the series
+  of each plot, its panels, units and axes. Its header lists the keys.
+- [`lantern/labels.yaml`](lantern/labels.yaml) names the labels that tell
+  series apart, such as fuels and fleets, gives each a colour name, such as
+  `blue_4`, and sets the stacking order.
+
+The colours come from [`theme.yaml`](theme.yaml), the Center's theme, next to
+the package in this repository. It gives the hex value of each colour name and
+the colours, in turn, of the other labels. It is not part of the package:
+Lantern installed from a package takes Plotly's colours.
+
+Lantern stops with the file and line when a value YAML would read as another
+type, such as `no` or `2030`, is not quoted, or a plot has an unknown key.
 
 ## Development
 

@@ -7,10 +7,8 @@ from __future__ import annotations
 
 import io
 import json
-import re
 import sys
 from dataclasses import dataclass
-from functools import reduce
 from pathlib import Path
 
 import polars as pl
@@ -20,6 +18,7 @@ from lantern.config import Layer, Plot
 LABELS = ("kind", "node", "attribute", "key1", "key2")
 KEYS = ("panel", "layer", "label", "date")
 BAND = (0.05, 0.95)
+_YEAR = 365.25  # days, the calendar year Navigate counts steps in
 
 _VALUE = pl.col("value")
 
@@ -49,6 +48,7 @@ def read_file(data: bytes, name: str) -> ResultsFile:
             *LABELS, "date", "value",
             run=pl.lit(f"{name}/") + pl.col("run") if compiled else pl.lit(name),
             sample=pl.col("sample") if compiled else pl.lit(name),
+            heating_value=_heating_value(meta),
         )
         runs = dict(frame.group_by("run").agg(pl.col("sample").n_unique()).sort("run").rows())
 
@@ -109,10 +109,11 @@ def prepare(plot: Plot, frame: pl.DataFrame, node: str | None = None, representa
     """
     samples = frame.select(pl.col("sample").unique())
 
-    if plot.split and node is not None:
-        frame = frame.filter(pl.col(plot.split) == node)
+    if plot.views and node is not None:
+        frame = frame.filter(pl.col(plot.views) == node)
 
-    pick = pl.col("sample") == representative
+    # a run without a representative gets the column null; comparing with None gives that too, but polars warns
+    pick = pl.col("sample") == representative if representative is not None else pl.lit(False)
     layers = []
 
     for index, layer in enumerate(plot.layers):
@@ -121,7 +122,7 @@ def prepare(plot: Plot, frame: pl.DataFrame, node: str | None = None, representa
             representative=_VALUE.filter(pick).first(),
         )
 
-        if layer.kind == "stack" and representative is not None:
+        if layer.draw == "stack" and representative is not None:
             values = values.with_columns(low="representative", value="representative", high="representative")
 
         layers.append(values)
@@ -141,8 +142,7 @@ def unit(plot: Plot, units: dict[str, str]) -> str:
     if plot.unit is not None:
         return plot.unit
 
-    layer = plot.layers[0]
-    attribute = (layer.series[0].split("/") + ["*"] * 3)[2]
+    _, attribute = plot.layers[0].series[0]
 
     return units.get(attribute, "")
 
@@ -154,30 +154,17 @@ def has_data(plot: Plot, frame: pl.DataFrame) -> bool:
 
 def split_nodes(plot: Plot, frame: pl.DataFrame) -> list[str]:
     """The views a split plot offers, sorted."""
-    if not plot.split:
+    if not plot.views:
         return []
 
-    return sorted(v for v in _rows(plot, frame).get_column(plot.split).unique().to_list() if v)
+    return sorted(v for v in _rows(plot, frame).get_column(plot.views).unique().to_list() if v)
 
 
-def select(frame: pl.DataFrame, selectors: tuple[str, ...]) -> pl.DataFrame:
-    """Rows any selector matches."""
-    return frame.filter(reduce(lambda a, b: a | b, map(_selector, selectors)))
+def select(frame: pl.DataFrame, series: tuple[tuple[str, str], ...]) -> pl.DataFrame:
+    """Rows of any of the series, each (kind, attribute) over every node of the kind."""
+    wanted = pl.DataFrame(list(series), schema=["kind", "attribute"], orient="row")
 
-
-def _selector(selector: str) -> pl.Expr:
-    conditions = [_part(column, part) for column, part in zip(LABELS, selector.split("/"), strict=False) if part != "*"]
-
-    return reduce(lambda a, b: a & b, conditions, pl.lit(True))
-
-
-def _part(column: str, part: str) -> pl.Expr:
-    if "*" not in part:
-        return pl.col(column).eq(part).fill_null(False)
-
-    pattern = "^" + ".*".join(map(re.escape, part.split("*"))) + "$"
-
-    return pl.col(column).str.contains(pattern).fill_null(False)
+    return frame.join(wanted, on=["kind", "attribute"], how="semi")
 
 
 def _rows(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
@@ -185,13 +172,19 @@ def _rows(plot: Plot, frame: pl.DataFrame) -> pl.DataFrame:
 
 
 def _samples(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples: pl.DataFrame) -> pl.DataFrame:
-    if plot.facet == "label":
+    if plot.panels == "label":
         panel = _label(layer)
 
     else:
-        panel = pl.col(plot.facet).fill_null("") if plot.facet else pl.lit("")
+        panel = pl.col(plot.panels).fill_null("") if plot.panels else pl.lit("")
 
-    rows = select(frame, layer.series).with_columns(label=_label(layer), panel=panel, layer=pl.lit(index, pl.Int32))
+    rows = select(frame, layer.series)
+
+    if layer.per_energy:
+        # a value whose fuel the file gives no heating value for cannot be converted
+        rows = rows.filter(pl.col("heating_value").is_not_null()).with_columns(value=_VALUE / pl.col("heating_value"))
+
+    rows = rows.with_columns(label=_label(layer), panel=panel, layer=pl.lit(index, pl.Int32))
 
     # one value per sample; a date with no value stays missing, so the line breaks there
     values = rows.group_by(*KEYS, "sample").agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
@@ -199,12 +192,40 @@ def _samples(index: int, layer: Layer, plot: Plot, frame: pl.DataFrame, samples:
     # a sample without the series has it negligible, as the results file leaves such series out
     grid = values.select(KEYS).unique().join(samples, how="cross")
     values = grid.join(values.with_columns(present=True), on=[*KEYS, "sample"], how="left")
+    values = values.select(*KEYS, "sample", value=pl.when(pl.col("present")).then(_VALUE).otherwise(0.0))
 
-    return values.select(*KEYS, "sample", value=pl.when(pl.col("present")).then(_VALUE).otherwise(0.0))
+    return _accumulate(values, frame) if layer.cumulative else values
+
+
+def _accumulate(values: pl.DataFrame, frame: pl.DataFrame) -> pl.DataFrame:
+    """Sum each series over the time steps up to and including each date, as Navigate's report does.
+
+    A value is a rate over the step ending at its date, the first step a year long; a missing value adds nothing.
+    """
+    steps = frame.select(pl.col("date").unique().sort()).with_columns(
+        step=(pl.col("date").diff().dt.total_days() / _YEAR).fill_null(1.0)
+    )
+    series = [key for key in KEYS if key != "date"]
+
+    return values.join(steps, on="date").sort("date").select(
+        *KEYS, "sample", value=(_VALUE.fill_null(0.0) * pl.col("step")).cum_sum().over(*series, "sample")
+    )
+
+
+def _heating_value(meta: dict) -> pl.Expr:
+    """The heating value, GJ/t, of the fuel a row is about: a plant's own fuel, else the fuel in key1, if the file gives it.
+
+    A compiled file carries no constants, so its rows have none.
+    """
+    heating_values = meta.get("constants", {}).get("lower_heating_value", {})
+    plant_fuel = pl.col("node").replace_strict(meta.get("plant_fuel", {}), default=None, return_dtype=pl.String)
+    fuel = pl.when(pl.col("kind") == "plant").then(plant_fuel).otherwise(pl.col("key1"))
+
+    return fuel.replace_strict(heating_values, default=None, return_dtype=pl.Float32)
 
 
 def _label(layer: Layer) -> pl.Expr:
-    if layer.label is None:
+    if layer.by is None:
         return pl.lit(layer.name) if layer.name else pl.col("attribute")
 
-    return pl.col(layer.label).fill_null(layer.name or "total")
+    return pl.col(layer.by).fill_null(layer.name or "total")

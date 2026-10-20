@@ -23,6 +23,7 @@ license = { file = "LICENSE" }
 dependencies = [
     "plotly>=6.0",
     "polars>=1.20",
+    "pyyaml>=6.0",
 ]
 
 [project.optional-dependencies]
@@ -36,7 +37,7 @@ Repository = "https://github.com/zerocarbonshipping/lantern-zcs"
 include = ["lantern*"]
 
 [tool.setuptools.package-data]
-lantern = ["plots.toml", "style.toml", "static/*"]
+lantern = ["plots.yaml", "labels.yaml", "static/*"]
 
 [project.scripts]
 lantern = "lantern.__main__:main"

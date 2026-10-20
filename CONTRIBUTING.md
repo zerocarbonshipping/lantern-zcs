@@ -45,7 +45,8 @@ Smaller features can be submitted directly as a pull request.
   it was verified.
 - Follow [`CODESTYLE.md`](CODESTYLE.md) and match the file you are editing.
 - Update documentation when behavior changes: the README and the header of
-  `plots.toml` or `style.toml` for user-facing changes, docstrings for code.
+  `plots.yaml` or `labels.yaml` for user-facing changes,
+  docstrings for code.
 - Add an entry to `CHANGELOG.md` for user-visible changes. See the
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 

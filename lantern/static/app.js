@@ -135,7 +135,7 @@ async function show(id, node, panel = null) {
   $("node").hidden = !plot.nodes.length;
   $("node").replaceChildren(...plot.nodes.map(([value, title]) => new Option(title, value, false, value === node)));
 
-  // the figure lists the full plot's panels, [facet value, title], for the panel select, and the panel of each cell
+  // the figure lists the full plot's panels, [value, title], for the panel select, and the panel of each cell
   // for a click on it; an enlarged panel stays enlarged in other runs that have it, else the server draws all panels
   const figure = await api(`/api/plots/${encodeURIComponent(id)}?${query({ run: runs, node, panel })}`);
   if (request !== requests) return;

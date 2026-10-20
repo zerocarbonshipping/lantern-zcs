@@ -20,15 +20,20 @@ Navigate run writes.
   folder holding a compiled results file, whose samples it already has.
   Files can also be added on the page, and a Refresh button reloads PATH
   from disk.
-- `plots.toml` declares what is plotted and `style.toml` how it looks, in the
-  Center's colours.
+- `plots.yaml` declares what is plotted and `labels.yaml` the names, colour
+  names and order of the series. `theme.yaml` in the repository gives the
+  Center's colours; it is not part of the package, which takes Plotly's
+  colours. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
+  `cumulative: true` sums a rate over the time steps up to each date.
+  `per_energy: true` divides a per-ton value by the heating value of its
+  fuel from the file's metadata, e.g. bunker prices and plant costs in USD/GJ.
 - Clicking a panel of a multi-panel plot shows it alone; a select in the
   toolbar or Escape goes back to all panels. Long panel titles wrap.
 - Ensembles: Lantern opens the compiled results file of a Horizon study, with
   a run per scenario and its samples, and draws an ensemble's lines and areas
   as the median with a 5th to 95th percentile band and a dotted line of its
   representative sample, and stacks as that sample. The representative is
-  chosen as in Lantern 1, from the plots `plots.toml` gives a `weight`.
+  chosen as in Lantern 1, from the plots `plots.yaml` gives a `weight`.
   Each stacked plot also comes as lines, one panel per stacked series with
   its band, followed by the stack as "<title> (Stacked)".
   Runs are listed in the sidebar, compiled files marked; Ctrl-click compares

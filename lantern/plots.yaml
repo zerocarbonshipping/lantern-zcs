@@ -1,0 +1,459 @@
+# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+# SPDX-License-Identifier: Apache-2.0
+
+# Lantern's plot catalogue: which series each plot shows, its panels and axes.
+# The names, colours and order of the labels are in labels.yaml.
+#
+# Plots are listed under their section; a plot's id is "<section>_<key>".
+#
+# Plot keys:
+#   title       heading of the plot
+#   unit        y-axis unit; default: the file's unit of the first series
+#   panels      one panel per node, attribute, key1 or key2
+#   views       one view per node, attribute, key1 or key2, picked in the page
+#   from_zero   false to fit the y axis to the data instead of starting at zero
+#   unstack     true for a stack to come first as lines, one panel per label
+#               with its band, then as "<title> (Stacked)", id "<id>_stacked";
+#               the stack's panels become the lines' views
+#   weight      above 0 counts the plot's series in choosing an ensemble's
+#               representative sample, the one closest to the median throughout
+#               (see representative.py)
+#   layers      series drawn in different ways, each a list item with the layer
+#               keys; a plot of one layer has them on the plot itself
+#
+# Layer keys:
+#   series      "kind.attribute", or a list of them: the attribute of every node
+#               of the kind, e.g. "fleet.newbuilds"; the global profile is
+#               "global.<attribute>"
+#   draw        line (default), stack or area; an ensemble's lines and areas
+#               get a band from the 5th to the 95th percentile and a dotted
+#               line of the representative sample, its stacks show that sample
+#   by          what tells the series apart: key1 (default), key2, node or
+#               attribute
+#   total       true to sum all series into one
+#   name        series name for total and for a series without key
+#   scale       factor the values are multiplied by, e.g. -1 to draw below
+#               zero or 100 for a percentage
+#   dash        plotly line dash for targets and limits, e.g. dash or dot
+#   cumulative  true to sum a rate over the time steps up to each date, as
+#               Navigate's CUMULATIVE report does; give the plot its unit
+#   per_energy  true to divide a per-ton value by the heating value of its
+#               fuel, e.g. USD/t to USD/GJ: the fuel in key1, or a plant's own
+#               fuel, as the results file's metadata gives them; give the plot
+#               its unit
+#
+# Series that are zero or missing throughout are left out; missing values, such
+# as a limit without bound, are not drawn. Text that YAML reads as another type,
+# such as no, on or 2030, must be quoted; Lantern stops at its line otherwise.
+
+global:
+  emission_absolute:
+    title: WTW emissions
+    weight: 0.4
+    total: true
+    series: global.total_equivalent_wtw
+
+  emission_intensity:
+    title: WTW emission intensity
+    total: true
+    series: global.intensity_total_equivalent_wtw
+
+  fuel_consumed:
+    title: Fuel consumed
+    unstack: true
+    draw: stack
+    name: shore_power
+    series:
+      - global.consumed_energy
+      - global.shore_power_energy
+
+  fuel_type_consumed:
+    title: Fuel consumed by fuel type
+    unstack: true
+    weight: 0.2
+    draw: stack
+    name: shore_power
+    series:
+      - global.fuel_type_energy
+      - global.shore_power_energy
+
+  # in port, vessels demand electrical energy and heat only
+  energy_demand:
+    title: Energy demand by demand type
+    unstack: true
+    draw: stack
+    series:
+      - global.energy_sea
+      - global.energy_port
+
+  energy_saving:
+    title: Energy saving
+    unit: "%"
+    layers:
+      - series: global.saving
+        scale: 100
+      - series:
+          - global.technology_energy_intensity_saving
+          - global.operational_energy_intensity_saving
+          - global.energy_intensity_saving
+        by: attribute
+        scale: 100
+        dash: dash
+
+  installed_power:
+    title: Installed power by fuel type
+    unstack: true
+    weight: 0.3
+    draw: stack
+    series: global.installed_power
+
+  power_converted_from:
+    title: Power converted from each fuel type
+    unstack: true
+    draw: stack
+    series: global.fuel_converted_power
+
+  power_converted_to:
+    title: Power converted to each fuel type
+    unstack: true
+    draw: stack
+    by: key2
+    series: global.fuel_converted_power
+
+  # the feeds include the processes of the supply chain, not only the feedstocks
+  feedstock_consumption:
+    title: Feed consumption against constraint
+    panels: key1
+    layers:
+      - series: global.feed_mass
+        total: true
+      - series: global.feed_constraint
+        total: true
+        dash: dash
+
+  fuel_related_expenses:
+    title: Fuel-related expenses
+    unstack: true
+    draw: stack
+    by: attribute
+    series: &fuel_related_expenses
+      - global.total_fuel_expenses
+      - global.levy_expenses
+      - global.regulation_expenses
+
+  fuel_related_expenses_cumulative:
+    title: Cumulative fuel-related expenses
+    unit: USD
+    unstack: true
+    draw: stack
+    by: attribute
+    cumulative: true
+    series: *fuel_related_expenses
+
+  expenses:
+    title: Expenses
+    unstack: true
+    weight: 0.1
+    draw: stack
+    by: attribute
+    series: &expenses
+      - global.vessel_expenses
+      - global.fuel_conversion_expenses
+      - global.technology_expenses
+      - global.total_fuel_expenses
+      - global.levy_expenses
+      - global.regulation_expenses
+
+  expenses_cumulative:
+    title: Cumulative expenses
+    unit: USD
+    unstack: true
+    draw: stack
+    by: attribute
+    cumulative: true
+    series: *expenses
+
+  tied_capital:
+    title: Capital tied in vessels and plants
+    by: attribute
+    series:
+      - global.vessel_tied_capital
+      - global.plant_tied_capital
+
+fuel:
+  type_supply_demand:
+    title: Fuel supply against fleet capacity by fuel type
+    panels: key1
+    layers:
+      - series: global.fuel_type_capacity
+        total: true
+        dash: dash
+      - series: global.production_type_energy
+        total: true
+        dash: dash
+
+  supply_demand:
+    title: Fuel consumed against produced
+    panels: key1
+    layers:
+      - series: global.consumed_energy
+        draw: area
+        total: true
+      - series: global.production_energy
+        total: true
+
+engine:
+  fuel_consumed:
+    title: Fuel consumed by the engines of each fuel type
+    panels: key1
+    unstack: true
+    draw: stack
+    by: key2
+    series: global.converter_energy
+
+  age:
+    title: Average vessel age by fuel type
+    panels: key1
+    series: global.weighted_average_age
+
+  pilot_fuel_share:
+    title: Pilot fuel share by primary fuel type
+    unit: "%"
+    panels: key1
+    scale: 100
+    series: global.pilot_fuel_share
+
+fleet:
+  emission_absolute:
+    title: WTW emissions per fleet
+    panels: node
+    total: true
+    series: fleet.total_equivalent_wtw
+
+  emission_intensity:
+    title: WTW emission intensity per fleet
+    panels: node
+    total: true
+    series: fleet.intensity_total_equivalent_wtw
+
+  fuel_consumed:
+    title: Fuel consumed per fleet
+    panels: node
+    unstack: true
+    draw: stack
+    name: shore_power
+    series:
+      - fleet.consumed_energy
+      - fleet.shore_power_energy
+
+  evolution:
+    title: Vessels per fleet
+    panels: node
+    unstack: true
+    draw: stack
+    series: fleet.existing_vessels
+
+  changes:
+    title: Newbuilds (above) and scrapped vessels (below) per fleet
+    unit: vessels/year
+    panels: node
+    from_zero: false
+    unstack: true
+    layers:
+      - series: fleet.scrap
+        draw: stack
+        scale: -1
+      - series: fleet.newbuilds
+        draw: stack
+
+  conversions_cumulative:
+    title: Cumulative vessels converted from (below) and to (above) each vessel
+    unit: vessels
+    panels: node
+    from_zero: false
+    unstack: true
+    layers:
+      - series: fleet.fuel_conversions
+        draw: stack
+        scale: -1
+        cumulative: true
+      - series: fleet.fuel_conversions
+        draw: stack
+        by: key2
+        cumulative: true
+
+  energy_saving:
+    title: Energy intensity saving per fleet
+    unit: "%"
+    panels: node
+    from_zero: false
+    by: attribute
+    scale: 100
+    series:
+      - fleet.operational_energy_intensity_saving
+      - fleet.technology_energy_intensity_saving
+      - fleet.energy_intensity_saving
+
+  # a fleet without speed management has only its reference speed
+  speed:
+    title: Fleet speed against its bounds
+    panels: node
+    layers:
+      - series:
+          - fleet.minimum_speed
+          - fleet.maximum_speed
+        by: attribute
+        dash: dot
+      - series:
+          - fleet.lowest_speed
+          - fleet.highest_speed
+        by: attribute
+        dash: dashdot
+      - series: fleet.reference_speed
+        by: attribute
+        dash: dash
+      - series:
+          - fleet.optimal_speed
+          - fleet.actual_speed
+        by: attribute
+
+  speed_per_vessel:
+    title: Vessel speed against its bounds
+    panels: node
+    layers:
+      - series:
+          - vessel.minimum_speed
+          - vessel.maximum_speed
+        by: attribute
+        dash: dot
+      - series: vessel.actual_speed
+        by: attribute
+
+  investment_metric:
+    title: Investment and instantaneous freight rate per vessel
+    unit: USD/1000 cargo-miles
+    panels: node
+    layers:
+      - series: vessel.investment_freight_rate
+        total: true
+        scale: 1000
+        dash: dash
+      - series: vessel.instantaneous_freight_rate
+        total: true
+        scale: 1000
+
+producer:
+  development:
+    title: Plant development per producer
+    panels: node
+    layers:
+      - series: producer.development
+        total: true
+      - series: producer.maximum_development
+        total: true
+        dash: dash
+
+  development_cumulative:
+    title: Cumulative plant development per producer
+    unit: plants
+    panels: node
+    layers:
+      - series: producer.development
+        total: true
+        cumulative: true
+      - series: producer.maximum_development
+        total: true
+        dash: dash
+        cumulative: true
+
+  feed_consumption:
+    title: Feed consumption against constraint
+    panels: key1
+    views: node
+    layers:
+      - series: producer.feed_mass
+        total: true
+      - series: producer.feed_constraint
+        total: true
+        dash: dash
+
+plant:
+  production_cost:
+    title: Levelized production cost per plant
+    unit: USD/GJ
+    panels: node
+    from_zero: false
+    layers:
+      - series: plant.investment_cost
+        total: true
+        dash: dash
+        per_energy: true
+      - series: plant.instantaneous_cost
+        total: true
+        per_energy: true
+
+port:
+  bunker_price:
+    title: Bunker price per fuel
+    unit: USD/GJ
+    views: node
+    per_energy: true
+    series: port.bunker_price
+
+  # a liquid-market fuel has no supply or infrastructure limit, only its bunkered mass
+  bunker_supply:
+    title: Bunkered fuel against supply and infrastructure
+    panels: key1
+    views: node
+    layers:
+      - series: port.bunker_mass
+        draw: area
+        total: true
+      - series: port.bunker_supply_mass
+        total: true
+      - series: port.bunkering_limit_mass
+        total: true
+        dash: dash
+
+regulation:
+  # one panel per vessel, and one without a title for the shared compliance
+  compliance:
+    title: Compliance against threshold
+    unit: regulation measure
+    panels: key1
+    views: node
+    layers:
+      - series: regulation.vessel_compliance
+        draw: area
+        total: true
+      - series: regulation.vessel_threshold
+        total: true
+        dash: dash
+      - series: regulation.adjusted_vessel_threshold
+        total: true
+        dash: dot
+      - series: regulation.shared_compliance
+        draw: area
+        total: true
+      - series: regulation.shared_threshold
+        total: true
+        dash: dash
+      - series: regulation.adjusted_shared_threshold
+        total: true
+        dash: dot
+
+  unit_trading:
+    title: Non-compliance and surplus units
+    views: node
+    by: attribute
+    series:
+      - regulation.non_compliance_units
+      - regulation.surplus_units
+
+  flexibility_cost:
+    title: Remedial and flexibility cost
+    views: node
+    by: attribute
+    series:
+      - regulation.remedial_cost
+      - regulation.flexibility_cost

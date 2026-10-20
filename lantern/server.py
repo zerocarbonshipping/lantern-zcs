@@ -1,15 +1,16 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Serve the page and its JSON API on localhost, one request at a time; the loaded files are the only state."""
+"""Serve the page and its JSON API on localhost; the loaded files are the only state, used by one request at a time."""
 
 from __future__ import annotations
 
 import json
+import threading
 from collections.abc import Callable
 from functools import cache
 from http import HTTPStatus
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -134,13 +135,19 @@ class Session:
         return self._cache[key]
 
 
-def make_server(session: Session, port: int) -> HTTPServer:
-    """An HTTP server for the session on localhost; port 0 picks a free one."""
-    return HTTPServer(("127.0.0.1", port), type("Handler", (_Handler,), {"session": session}))
+def make_server(session: Session, port: int) -> ThreadingHTTPServer:
+    """An HTTP server for the session on localhost; port 0 picks a free one.
+
+    Each connection gets a thread, so one a browser opens and never sends a request on holds up nothing but itself.
+    """
+    handler = type("Handler", (_Handler,), {"session": session, "lock": threading.Lock()})
+
+    return ThreadingHTTPServer(("127.0.0.1", port), handler)
 
 
 class _Handler(BaseHTTPRequestHandler):
     session: Session
+    lock: threading.Lock  # the session is not thread-safe: it serves one request at a time, only the socket I/O overlaps
 
     def do_GET(self) -> None:
         url = urlparse(self.path)
@@ -157,13 +164,14 @@ class _Handler(BaseHTTPRequestHandler):
             self._send(STATIC.joinpath(name).read_bytes(), content_type)
 
         elif path == "/api/state":
-            self._json(self.session.state())
+            self._json(self._query(self.session.state))
 
         elif path == "/api/catalogue":
-            self._json(self.session.catalogue(runs))
+            self._json(self._query(self.session.catalogue, runs))
 
         elif path.startswith("/api/plots/"):
-            figure = self.session.figure(path.removeprefix("/api/plots/"), runs, query.get("node"), query.get("panel"))
+            plot_id = path.removeprefix("/api/plots/")
+            figure = self._query(self.session.figure, plot_id, runs, query.get("node"), query.get("panel"))
             self._send(figure.encode(), "application/json")
 
         else:
@@ -174,10 +182,10 @@ class _Handler(BaseHTTPRequestHandler):
 
         try:
             if path == "/api/refresh":
-                self.session.refresh()
+                state = self._update(self.session.refresh)
             elif path == "/api/files":
                 name = unquote(self.headers["X-Filename"])
-                self.session.add(self.rfile.read(int(self.headers["Content-Length"])), name)
+                state = self._update(self.session.add, self.rfile.read(int(self.headers["Content-Length"])), name)
             else:
                 self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
                 return
@@ -186,21 +194,35 @@ class _Handler(BaseHTTPRequestHandler):
             self._json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             return
 
-        self._json(self.session.state())
+        self._json(state)
 
     def do_DELETE(self) -> None:
-        self.session.remove(unquote(urlparse(self.path).path).removeprefix("/api/files/"))
-        self._json(self.session.state())
+        name = unquote(urlparse(self.path).path).removeprefix("/api/files/")
+        self._json(self._update(self.session.remove, name))
+
+    def _query[T](self, ask: Callable[..., T], *args: object) -> T:
+        with self.lock:
+            return ask(*args)
+
+    def _update(self, change: Callable[..., None], *args: object) -> dict:
+        """Change the session and read its state after as one step, so no request sees it half-changed."""
+        with self.lock:
+            change(*args)
+            return self.session.state()
 
     def _json(self, value: object, status: HTTPStatus = HTTPStatus.OK) -> None:
         self._send(json.dumps(value).encode(), "application/json", status)
 
     def _send(self, body: bytes, content_type: str, status: HTTPStatus = HTTPStatus.OK) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", f"{content_type}; charset=utf-8")
-        self.send_header("Content-Length", str(len(body)))
-        self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.send_response(status)
+            self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # the browser dropped the connection, as a reload does to requests underway; there is no one to tell
 
     def log_message(self, *args: object) -> None:
         pass

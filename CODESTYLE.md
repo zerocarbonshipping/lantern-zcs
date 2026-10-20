@@ -8,9 +8,10 @@ SPDX-License-Identifier: CC-BY-4.0
 `ruff check lantern` enforces formatting basics, imports and naming. Beyond that:
 
 - **Keep it small.** No options, flags or features nobody uses yet. Lantern
-  plots what `plots.toml` declares and styles it as `style.toml` says; keep
-  that split: nothing about looks in `plots.toml`, nothing about data in
-  `style.toml`.
+  plots what `plots.yaml` declares and names and orders its series as
+  `labels.yaml` says; keep that split: nothing about looks in `plots.yaml`.
+  The colours a label names come from `theme.yaml` in the repository, which is
+  not part of the package; nothing in the package depends on it.
 - **Docstrings:** one line per module, public function and class, saying what
   it does and any non-obvious why. No parameter sections.
 - **Type hints** on signatures only.
