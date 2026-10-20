@@ -333,3 +333,7 @@ def main():
     print(f"\nDone in {elapsed:.1f}s — {plot_count} plots, 2 CSV exports to {outdir}/")
     if skipped_metrics:
         print(f"  Skipped {len(skipped_metrics)} metric(s) (no matching columns): {', '.join(skipped_metrics)}")
+
+
+if __name__ == "__main__":
+    main()
