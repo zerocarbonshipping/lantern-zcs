@@ -416,31 +416,32 @@ port:
         dash: dash
 
 regulation:
-  # one panel per vessel, and one without a title for the shared compliance
-  compliance:
-    title: Compliance against threshold
-    unit: regulation measure
-    panels: key1
-    views: node
-    layers:
-      - series: regulation.vessel_compliance
-        draw: area
-        total: true
-      - series: regulation.vessel_threshold
-        total: true
-        dash: dash
-      - series: regulation.adjusted_vessel_threshold
-        total: true
-        dash: dot
-      - series: regulation.shared_compliance
-        draw: area
-        total: true
-      - series: regulation.shared_threshold
-        total: true
-        dash: dash
-      - series: regulation.adjusted_shared_threshold
-        total: true
-        dash: dot
+  # left out for now: a panel per vessel makes it by far the slowest plot to prepare
+#   # one panel per vessel, and one without a title for the shared compliance
+#   compliance:
+#     title: Compliance against threshold
+#     unit: regulation measure
+#     panels: key1
+#     views: node
+#     layers:
+#       - series: regulation.vessel_compliance
+#         draw: area
+#         total: true
+#       - series: regulation.vessel_threshold
+#         total: true
+#         dash: dash
+#       - series: regulation.adjusted_vessel_threshold
+#         total: true
+#         dash: dot
+#       - series: regulation.shared_compliance
+#         draw: area
+#         total: true
+#       - series: regulation.shared_threshold
+#         total: true
+#         dash: dash
+#       - series: regulation.adjusted_shared_threshold
+#         total: true
+#         dash: dot
 
   unit_trading:
     title: Non-compliance and surplus units

@@ -1,33 +1,32 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""lantern [PATH ...]: open the viewer with the results files at PATH, a folder loading every .parquet below it."""
+"""lantern [PATH ...]: open the viewer and load the results files at PATH, a folder loading every .parquet below it."""
 
-import shutil
 import sys
 import webbrowser
 from pathlib import Path
 
 from lantern.config import load_config
-from lantern.data import ResultsFileError
 from lantern.server import Session, make_server
 
 PORT = 8050
-CLEAR = "\r\x1b[K"  # back to the start of the line and clear it, to redraw the progress bar in place
 
 
 def main() -> int:
-    """Load the given results, serve the viewer and open it in the browser."""
-    session = Session(load_config(), [Path(arg) for arg in sys.argv[1:]])
+    """Serve the viewer, open it in the browser and load the given results in the background, the page showing the progress."""
+    sources = [Path(arg) for arg in sys.argv[1:]]
+    # only a missing path fails here; finding the files in a folder is part of the load
+    missing = [f"'{path}'" for path in sources if not path.exists()]
 
-    try:
-        session.refresh(_progress)
-    except (OSError, ResultsFileError) as e:
-        print(f"{CLEAR}Error: {e}", file=sys.stderr)
+    if missing:
+        print(f"Error: no such file or folder: {', '.join(missing)}", file=sys.stderr)
         return 1
 
-    if session.files:
-        print(f"{CLEAR}Loaded {len(session.files)} results file(s)", flush=True)
+    session = Session(load_config(), sources)
+
+    if sources:
+        session.refresh()
 
     try:
         server = make_server(session, PORT)
@@ -46,13 +45,6 @@ def main() -> int:
             pass
 
     return 0
-
-
-def _progress(done: int, total: int, name: str) -> None:
-    # a line wider than the terminal wraps, and the wrapped part could not be redrawn
-    bar = "#" * (20 * done // total)
-    line = f"Loading [{bar:<20}] {done}/{total} {name}"
-    print(CLEAR + line[: shutil.get_terminal_size().columns - 1], end="", flush=True)
 
 
 if __name__ == "__main__":

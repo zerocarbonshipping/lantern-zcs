@@ -20,6 +20,10 @@ Navigate run writes.
   folder holding a compiled results file, whose samples it already has.
   Files can also be added on the page, and a Refresh button reloads PATH
   from disk.
+- A file is never read whole: on loading, Lantern reads a run at a time, only
+  the series the plots name, and keeps each plot's median, band and
+  representative, so a study of thousands of samples loads in about 1 GB.
+  Files load in the background, the page showing the progress.
 - `plots.yaml` declares what is plotted and `labels.yaml` the names, colour
   names and order of the series. `theme.yaml` in the repository gives the
   Center's colours; it is not part of the package, which takes Plotly's

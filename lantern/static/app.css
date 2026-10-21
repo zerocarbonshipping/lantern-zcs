@@ -6,6 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 body { margin: 0; height: 100vh; display: flex; flex-direction: column; font: 14px system-ui, sans-serif; color: #1d2327; background: #f6f7f8; }
 header { display: flex; gap: 8px; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid #dde2e5; }
 .spacer { flex: 1; }
+#loading { display: flex; gap: 8px; align-items: center; min-width: 0; margin-left: 16px; font-size: 12px; color: #5f6b73; }
+#loading[hidden] { display: none; }
+#loading progress { width: 220px; flex-shrink: 0; accent-color: #1f5c7a; }
+#loading span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .button { padding: 5px 10px; border: 1px solid #dde2e5; border-radius: 6px; cursor: pointer; background: #fff; font: inherit; color: inherit; }
 .button:disabled { color: #b3bbc0; cursor: default; }
 .layout { flex: 1; display: flex; min-height: 0; }
@@ -29,5 +33,6 @@ main { flex: 1; min-width: 0; overflow: auto; scrollbar-gutter: stable; padding:
 #runs span, #runs .run { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #runs span { flex: 1; font-weight: 600; }
 #runs .remove { width: auto; padding: 4px 6px; color: #5f6b73; }
+#runs .remove[hidden] { display: none; }
 #runs .compiled { margin: 6px 0; padding-left: 6px; border-left: 3px solid #1f5c7a; }
 #runs small { padding: 0 5px; border-radius: 4px; background: #e3eef3; color: #1f5c7a; font-size: 11px; }

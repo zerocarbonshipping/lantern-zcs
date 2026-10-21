@@ -11,6 +11,8 @@ let current = null;
 let panels = [];
 let cells = [];
 let requests = 0;
+let polling = false;
+let version = null;
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -25,6 +27,7 @@ const allRuns = () => files.flatMap((file) => Object.keys(file.runs));
 // take the loaded files from the server; the selected runs stay selected while they are loaded
 async function load(state) {
   files = state.files;
+  version = state.version;
   $("refresh").hidden = !state.refreshable;
   const kept = runs.filter((id) => allRuns().includes(id));
   await select(kept.length ? kept : allRuns().slice(0, 1));
@@ -43,13 +46,14 @@ function pick(id, event) {
   if (next.length) select(next);
 }
 
-// upload results files; a file is named after itself, without the extension
+// upload results files, which the server then loads in the background; a file is named after itself, without the extension
 async function upload(list) {
   const errors = [];
   let state = null;
 
   for (const file of [...list].filter((f) => f.name.endsWith(".parquet"))) {
     const name = file.name.replace(/\.parquet$/, "");
+    progress({ loading: { text: `Uploading ${name}` } });
 
     try {
       state = await api("/api/files", { method: "POST", headers: { "X-Filename": encodeURIComponent(name) }, body: file });
@@ -58,8 +62,44 @@ async function upload(list) {
     }
   }
 
-  $("message").textContent = errors.join(" ");
-  if (state) await load(state);
+  state = state || await api("/api/state");
+  await watch(state);
+  if (errors.length) $("message").textContent = errors.join(" ");
+}
+
+// show the progress of a load underway and poll it until no load is left, taking the files as each plot is prepared
+async function watch(state) {
+  progress(state);
+  if (!state.loading || polling) return;
+  polling = true;
+
+  while (state.loading) {
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    state = await api("/api/state");
+    progress(state);
+    if (state.version !== version) await load(state);
+  }
+
+  polling = false;
+  await load(state);
+}
+
+// the progress bar shows the steps of the file loading, or runs to and fro until it knows them; an error replaces it
+function progress(state) {
+  const loading = state.loading;
+  $("loading").hidden = !loading;
+  $("refresh").disabled = Boolean(loading);
+  $("message").textContent = state.error || "";
+  if (!loading) return;
+
+  $("step").textContent = $("step").title = loading.text;
+
+  if (loading.total) {
+    $("progress").max = loading.total;
+    $("progress").value = loading.done;
+  } else {
+    $("progress").removeAttribute("value");
+  }
 }
 
 function runButton(id, text, representative) {
@@ -78,6 +118,8 @@ function render() {
     const head = document.createElement("div");
     const remove = Object.assign(document.createElement("button"), { textContent: "×", title: `Unload ${file.name}`, className: "remove" });
     remove.onclick = async () => load(await api(`/api/files/${encodeURIComponent(file.name)}`, { method: "DELETE" }));
+    // a file still loading would come back with its next plot
+    remove.hidden = file.loading;
 
     if (file.compiled) {
       const tag = Object.assign(document.createElement("small"), { textContent: "compiled" });
@@ -148,6 +190,8 @@ async function show(id, node, panel = null) {
   // plotly fills the space below the toolbar; a taller panel grid keeps its own height and scrolls
   $("figure").style.minHeight = `${figure.layout.height}px`;
   Object.assign(figure.layout, size());
+  // a redraw of the same view, as when a load publishes more plots, keeps the zoom
+  figure.layout.uirevision = JSON.stringify([id, runs, node, panel]);
   await Plotly.react($("figure"), figure.data, figure.layout, { displaylogo: false });
   $("figure").removeAllListeners("plotly_click");
   if (!panel && panels.length > 1) $("figure").on("plotly_click", enlarge);
@@ -168,20 +212,15 @@ $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
 $("node").onchange = (e) => show(current, e.target.value);
 $("panel").onchange = (e) => show(current, $("node").value, e.target.value || null);
 window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("node").value); };
-$("refresh").onclick = async (e) => {
-  e.target.disabled = true;
-
+$("refresh").onclick = async () => {
   try {
-    await load(await api("/api/refresh", { method: "POST" }));
-    $("message").textContent = "";
+    await watch(await api("/api/refresh", { method: "POST" }));
   } catch (error) {
     $("message").textContent = error.message;
   }
-
-  e.target.disabled = false;
 };
 window.onresize = () => { if ($("figure").data) Plotly.relayout($("figure"), size()); };
 window.ondragover = (e) => e.preventDefault();
 window.ondrop = (e) => { e.preventDefault(); upload(e.dataTransfer.files); };
 
-api("/api/state").then(load);
+api("/api/state").then(async (state) => { await load(state); await watch(state); });

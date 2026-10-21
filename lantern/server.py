@@ -1,13 +1,14 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Serve the page and its JSON API on localhost; the loaded files are the only state, used by one request at a time."""
+"""Serve the page and its JSON API on localhost; results files load in the background while the page shows the progress."""
 
 from __future__ import annotations
 
 import json
+import sys
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -18,71 +19,98 @@ from urllib.parse import parse_qs, unquote, urlparse
 import polars as pl
 from plotly.offline import get_plotlyjs
 
-from lantern import data, figures, representative
+from lantern import data, figures, results
 from lantern.config import Config, Plot
+from lantern.results import Results
 
 STATIC = files("lantern").joinpath("static")
 ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/app.css": ("app.css", "text/css")}
 
 
+
 class Session:
-    """The results files at the sources and those added on the page, and what is drawn from each of their runs."""
+    """The results files at the sources and those added on the page, and what is drawn from each of their runs.
+
+    Requests hold the lock, as the session is not thread-safe. A file loads in a thread of its own, one load at a
+    time, without the lock, so the page keeps working and polls the progress; the lock is taken only to put a file
+    in place as each of its plots is prepared, which counts up the version, so the page takes it. A load reports its
+    progress and error by plain assignment, which needs no lock.
+    """
 
     def __init__(self, config: Config, sources: list[Path]) -> None:
         self.config = config
         self.sources = sources
-        self.loaded: dict[str, data.ResultsFile] = {}
-        self.added: dict[str, data.ResultsFile] = {}
+        self.loaded: dict[str, Results] = {}
+        self.added: dict[str, Results] = {}
+        self.lock = threading.RLock()
         self._cache: dict = {}
+        # loads run in daemon threads, so Ctrl+C stops Lantern without waiting for one underway
+        self._loads: list[threading.Thread] = []
+        self._one_load = threading.Lock()
+        self._progress: dict = {}
+        self._error: str | None = None
+        self._version = 0
 
     @property
-    def files(self) -> dict[str, data.ResultsFile]:
+    def files(self) -> dict[str, Results]:
         """Every loaded results file; one added on the page replaces one of the same name at the sources."""
         return self.loaded | self.added
 
     def add(self, content: bytes, name: str) -> None:
-        """Load a results file added on the page."""
-        self.added[name] = data.read_file(content, name)
-        self._cache.clear()
+        """Start loading a results file added on the page."""
+        def load() -> None:
+            for file in self._load(content, name, 1, 1):
+                with self.lock:
+                    self.added[name] = file
+                    self._changed()
 
-    def refresh(self, progress: Callable[[int, int, str], None] | None = None) -> None:
-        """Load the results files at the sources as they are on disk now; nothing changes if one is unreadable.
+        self._start(load)
 
-        progress, if given, is told before each file how many of how many are read and which comes next.
-        """
-        found = data.results_files(self.sources)
-        files = {}
+    def refresh(self) -> None:
+        """Start loading the results files at the sources as they are on disk now, each replacing its old version as
+        it loads; files no longer there go once all have loaded."""
+        def load() -> None:
+            found = data.results_files(self.sources)
 
-        for done, (path, name) in enumerate(found):
-            if progress:
-                progress(done, len(found), name)
+            for index, (path, name) in enumerate(found):
+                for file in self._load(path, name, index + 1, len(found)):
+                    with self.lock:
+                        self.loaded[name] = file
+                        self._changed()
 
-            files[name] = data.read_file(path.read_bytes(), name)
+            names = {name for _, name in found}
 
-        self.loaded = files
-        self._cache.clear()
+            with self.lock:
+                self.loaded = {k: v for k, v in self.loaded.items() if k in names}
+                self._changed()
+
+        self._start(load)
 
     def remove(self, name: str) -> None:
         """Unload a results file."""
         self.loaded.pop(name, None)
         self.added.pop(name, None)
-        self._cache.clear()
+        self._changed()
 
     def state(self) -> dict:
-        """The loaded files with their runs, samples and the representative sample of each ensemble, for the page."""
-        files = [{
-            "name": f.name, "compiled": f.compiled, "runs": f.runs,
-            "representatives": {run: self._representative(run) for run in f.runs},
-        } for f in self.files.values()]
+        """The files with their runs, samples, the representative sample of each ensemble and whether they are still
+        loading, the version of the files, the progress of loading, {text, done, total}, while a load is underway or
+        waiting, and the error of the last one that failed; a file whose load failed is not loading."""
+        loading = self._progress if any(load.is_alive() for load in self._loads) else None
+        files = [
+            {"name": f.name, "compiled": f.compiled, "runs": f.runs, "representatives": f.representatives,
+             "loading": bool(loading) and not f.complete}
+            for f in self.files.values()
+        ]
+        refreshable = bool(self.sources)
 
-        return {"files": files, "refreshable": bool(self.sources)}
+        return {"files": files, "version": self._version, "refreshable": refreshable, "loading": loading, "error": self._error}
 
     def catalogue(self, runs: list[str]) -> list[dict]:
         """The plots, with whether any of the runs has data for each and the views of a split plot, [value, title]."""
         def compute() -> list[dict]:
-            frames = [self._frame(run) for run in runs]
             return [
-                {"id": p.id, "title": p.title, "section": p.section, "available": any(data.has_data(p, f) for f in frames),
+                {"id": p.id, "title": p.title, "section": p.section, "available": not self._lines(p, runs).is_empty(),
                  "nodes": [[n, self.config.labels.get(n, n)] for n in self._nodes(p, runs)]}
                 for p in self.config.plots
             ]
@@ -95,23 +123,60 @@ class Session:
         node = node or next(iter(self._nodes(plot, runs)), None)
 
         def draw() -> str:
-            series = pl.concat([self._series(plot, run, node) for run in runs])
+            lines = self._lines(plot, runs).filter(pl.col("view") == (node or "")).drop("view")
             unit = data.unit(plot, self._units())
-            return figures.build(plot, series, unit, self.config, self._names(runs), panel).to_json()
+            return figures.build(plot, lines, unit, self.config, self._names(runs), panel).to_json()
 
         return self._cached((plot_id, *runs, node, panel), draw)
 
-    def _series(self, plot: Plot, run: str, node: str | None) -> pl.DataFrame:
-        def compute() -> pl.DataFrame:
-            return data.prepare(plot, self._frame(run), node, self._representative(run)).with_columns(run=pl.lit(run))
+    def _start(self, load: Callable[[], None]) -> None:
+        """Run a load, which publishes what it loads, in a thread of its own after any underway."""
+        def work() -> None:
+            with self._one_load:
+                try:
+                    load()
+                # any failure, not only an unreadable file, ends the load, so the page stops waiting and shows it
+                except Exception as e:
+                    self._error = str(e) or type(e).__name__
+                    print(f"Error: {self._error}", file=sys.stderr, flush=True)
 
-        return self._cached(("series", plot.id, run, node), compute)
+        with self.lock:
+            self._loads = [load for load in self._loads if load.is_alive()]
 
-    def _representative(self, run: str) -> str | None:
-        return self._cached(("representative", run), lambda: representative.choose(self.config.plots, self._frame(run)))
+            if not self._loads:
+                self._report("Starting to load")
+
+            self._error = None
+            self._loads.append(threading.Thread(target=work, daemon=True))
+            self._loads[-1].start()
+
+    def _load(self, source: Path | bytes, name: str, index: int, count: int) -> Iterator[Results]:
+        """Load a results file, the index-th of count, reporting its progress; it is yielded as each plot is prepared."""
+        file = f"{name} ({index}/{count})" if count > 1 else name
+
+        def progress(step: str, done: int, total: int) -> None:
+            self._report(f"Loading {file} · {step}", done, total)
+
+        return results.load(source, name, self.config.plots, progress)
+
+    def _changed(self) -> None:
+        """Forget what was drawn from the files and count up their version, so the page takes them anew."""
+        self._cache.clear()
+        self._version += 1
+
+    def _report(self, text: str, done: int = 0, total: int = 0) -> None:
+        self._progress = {"text": text, "done": done, "total": total}
+
+    def _lines(self, plot: Plot, runs: list[str]) -> pl.DataFrame:
+        """The prepared lines of a plot of the runs, over all its views."""
+        lines = [f.plots[plot.id] for f in self.files.values() if plot.id in f.plots and not f.runs.keys().isdisjoint(runs)]
+
+        return pl.concat(lines).filter(pl.col("run").is_in(runs)) if lines else pl.DataFrame()
 
     def _nodes(self, plot: Plot, runs: list[str]) -> list[str]:
-        return sorted({n for run in runs for n in data.split_nodes(plot, self._frame(run))})
+        lines = self._lines(plot, runs)
+
+        return [] if lines.is_empty() else sorted(v for v in lines.get_column("view").unique().to_list() if v)
 
     def _names(self, runs: list[str]) -> dict[str, str]:
         """Each run's name in a figure: that within its compiled file, or the file's; the full one where two are alike."""
@@ -119,11 +184,6 @@ class Session:
         names = list(short.values())
 
         return {run: short[run] if names.count(short[run]) == 1 else run for run in runs}
-
-    def _frame(self, run: str) -> pl.DataFrame:
-        file = next(f for f in self.files.values() if run in f.runs)
-
-        return self._cached(("frame", run), lambda: file.frame.filter(pl.col("run") == run))
 
     def _units(self) -> dict[str, str]:
         return {k: v for f in self.files.values() for k, v in f.units.items()}
@@ -140,14 +200,13 @@ def make_server(session: Session, port: int) -> ThreadingHTTPServer:
 
     Each connection gets a thread, so one a browser opens and never sends a request on holds up nothing but itself.
     """
-    handler = type("Handler", (_Handler,), {"session": session, "lock": threading.Lock()})
+    handler = type("Handler", (_Handler,), {"session": session})
 
     return ThreadingHTTPServer(("127.0.0.1", port), handler)
 
 
 class _Handler(BaseHTTPRequestHandler):
     session: Session
-    lock: threading.Lock  # the session is not thread-safe: it serves one request at a time, only the socket I/O overlaps
 
     def do_GET(self) -> None:
         url = urlparse(self.path)
@@ -190,7 +249,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
                 return
 
-        except (OSError, data.ResultsFileError) as e:
+        except OSError as e:
             self._json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             return
 
@@ -201,12 +260,12 @@ class _Handler(BaseHTTPRequestHandler):
         self._json(self._update(self.session.remove, name))
 
     def _query[T](self, ask: Callable[..., T], *args: object) -> T:
-        with self.lock:
+        with self.session.lock:
             return ask(*args)
 
     def _update(self, change: Callable[..., None], *args: object) -> dict:
         """Change the session and read its state after as one step, so no request sees it half-changed."""
-        with self.lock:
+        with self.session.lock:
             change(*args)
             return self.session.state()
 
