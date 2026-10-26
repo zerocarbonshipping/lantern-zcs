@@ -1,69 +1,47 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Load a results file: read each run once, choose its representative sample and prepare every plot of all runs."""
+"""Load a results file: read each run once and prepare every plot of it."""
 
 from __future__ import annotations
 
-import itertools
-from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
 import polars as pl
 
-from lantern import data, representative
+from lantern import data
 from lantern.config import Plot
 
 
 @dataclass(frozen=True)
 class Results:
-    """A results file, loaded or loading: its name, units and runs, the representative sample of each run read, the
-    prepared lines of every plot prepared with data, by plot id, and whether all are; the file itself is not kept."""
+    """A loaded results file: its name, units and runs, and the prepared lines of every plot with data, by plot id;
+    the file itself is not kept."""
 
     name: str
     units: dict[str, str]
-    runs: dict[str, int]
+    runs: list[str]
     compiled: bool
-    representatives: dict[str, str | None]
     plots: dict[str, pl.DataFrame]
-    complete: bool
 
 
-def load(
-    source: Path | bytes, name: str, plots: tuple[Plot, ...], progress: Callable[[str, int, int], None],
-) -> Iterator[Results]:
-    """Load a results file, yielding it once opened, again as each plot is prepared and at last complete; progress is
-    told the step it starts and how many of how many steps are done."""
-    progress("opening", 0, 0)
+def load(source: Path | bytes, name: str, plots: tuple[Plot, ...]) -> Results:
+    """Load a results file: open it, read each run and prepare every plot of it, keeping the plots with data."""
     file = data.open_file(source, name)
-    names = file.runs
-    total, done = 2 * len(names) + len(plots), itertools.count()
-    runs, representatives, prepared = {}, {}, {}
+    lines: dict[str, list[pl.DataFrame]] = {plot.id: [] for plot in plots}
 
-    def results(complete: bool = False) -> Results:
-        return Results(name, file.units, names, file.compiled, dict(representatives), dict(prepared), complete)
+    # a run's rows stay in memory only while its plots are prepared
+    for run_name in file.runs:
+        run = data.read_run(file, run_name, plots)
 
-    yield results()
+        for plot in plots:
+            frame = data.prepare(plot, run)
 
-    # every run is read first, so the plots are ready in their order, each for all runs; the runs' rows stay in
-    # memory until the last plot is prepared
-    for run_name in names:
-        short = run_name.removeprefix(f"{name}/")
-        progress(f"{short}: reading", next(done), total)
-        runs[run_name] = data.read_run(file, run_name, plots)
-        progress(f"{short}: representative sample", next(done), total)
-        representatives[run_name] = representative.choose(plots, runs[run_name])
+            if not frame.is_empty():
+                lines[plot.id].append(frame)
 
-    for plot in plots:
-        progress(plot.title, next(done), total)
-        lines = [data.prepare(plot, run, representatives[run_name]) for run_name, run in runs.items()]
-        lines = [frame for frame in lines if not frame.is_empty()]
+    prepared = {plot_id: pl.concat(frames) for plot_id, frames in lines.items() if frames}
+    print(f"Loaded {name}: {len(file.runs)} run(s), {len(prepared)} of {len(plots)} plots with data", flush=True)
 
-        if lines:
-            prepared[plot.id] = pl.concat(lines)
-            yield results()
-
-    print(f"Loaded {name}: {len(names)} run(s), {len(prepared)} of {len(plots)} plots with data", flush=True)
-
-    yield results(complete=True)
+    return Results(name, file.units, file.runs, file.compiled, prepared)

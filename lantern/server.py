@@ -1,14 +1,13 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Serve the page and its JSON API on localhost; results files load in the background while the page shows the progress."""
+"""Serve the page and its JSON API on localhost; the loaded files are the only state, used by one request at a time."""
 
 from __future__ import annotations
 
 import json
-import sys
 import threading
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -16,40 +15,37 @@ from importlib.resources import files
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+import plotly.graph_objects as go
 import polars as pl
 from plotly.offline import get_plotlyjs
 
 from lantern import data, figures, results
-from lantern.config import Config, Plot
+from lantern.config import Config, ConfigError, Plot, load_config
 from lantern.results import Results
 
 STATIC = files("lantern").joinpath("static")
-ASSETS = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/app.css": ("app.css", "text/css")}
-
+ASSETS = {
+    "/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/app.css": ("app.css", "text/css"),
+    "/logo.svg": ("logo.svg", "image/svg+xml"),
+}
 
 
 class Session:
     """The results files at the sources and those added on the page, and what is drawn from each of their runs.
 
-    Requests hold the lock, as the session is not thread-safe. A file loads in a thread of its own, one load at a
-    time, without the lock, so the page keeps working and polls the progress; the lock is taken only to put a file
-    in place as each of its plots is prepared, which counts up the version, so the page takes it. A load reports its
-    progress and error by plain assignment, which needs no lock.
+    Requests hold the lock, as the session is not thread-safe; a file loads within the request that adds or refreshes
+    it, which holds up the other requests until it is loaded.
     """
 
-    def __init__(self, config: Config, sources: list[Path]) -> None:
-        self.config = config
+    def __init__(self, sources: list[Path]) -> None:
+        self.config: Config = load_config()
         self.sources = sources
         self.loaded: dict[str, Results] = {}
         self.added: dict[str, Results] = {}
-        self.lock = threading.RLock()
+        # the added files' contents, to prepare them again when the configuration is reloaded
+        self._uploads: dict[str, bytes] = {}
+        self.lock = threading.Lock()
         self._cache: dict = {}
-        # loads run in daemon threads, so Ctrl+C stops Lantern without waiting for one underway
-        self._loads: list[threading.Thread] = []
-        self._one_load = threading.Lock()
-        self._progress: dict = {}
-        self._error: str | None = None
-        self._version = 0
 
     @property
     def files(self) -> dict[str, Results]:
@@ -57,54 +53,33 @@ class Session:
         return self.loaded | self.added
 
     def add(self, content: bytes, name: str) -> None:
-        """Start loading a results file added on the page."""
-        def load() -> None:
-            for file in self._load(content, name, 1, 1):
-                with self.lock:
-                    self.added[name] = file
-                    self._changed()
-
-        self._start(load)
+        """Load a results file added on the page."""
+        self.added[name] = results.load(content, name, self.config.plots)
+        self._uploads[name] = content
+        self._cache.clear()
 
     def refresh(self) -> None:
-        """Start loading the results files at the sources as they are on disk now, each replacing its old version as
-        it loads; files no longer there go once all have loaded."""
-        def load() -> None:
-            found = data.results_files(self.sources)
-
-            for index, (path, name) in enumerate(found):
-                for file in self._load(path, name, index + 1, len(found)):
-                    with self.lock:
-                        self.loaded[name] = file
-                        self._changed()
-
-            names = {name for _, name in found}
-
-            with self.lock:
-                self.loaded = {k: v for k, v in self.loaded.items() if k in names}
-                self._changed()
-
-        self._start(load)
+        """Read the configuration again and load the results files at the sources as they are on disk now, in place of
+        those loaded from there before, preparing the added files again; nothing changes if any is unreadable."""
+        config = load_config()
+        found = data.results_files(self.sources)
+        loaded = {name: results.load(path, name, config.plots) for path, name in found}
+        added = {name: results.load(content, name, config.plots) for name, content in self._uploads.items()}
+        self.config, self.loaded, self.added = config, loaded, added
+        self._cache.clear()
 
     def remove(self, name: str) -> None:
         """Unload a results file."""
         self.loaded.pop(name, None)
         self.added.pop(name, None)
-        self._changed()
+        self._uploads.pop(name, None)
+        self._cache.clear()
 
     def state(self) -> dict:
-        """The files with their runs, samples, the representative sample of each ensemble and whether they are still
-        loading, the version of the files, the progress of loading, {text, done, total}, while a load is underway or
-        waiting, and the error of the last one that failed; a file whose load failed is not loading."""
-        loading = self._progress if any(load.is_alive() for load in self._loads) else None
-        files = [
-            {"name": f.name, "compiled": f.compiled, "runs": f.runs, "representatives": f.representatives,
-             "loading": bool(loading) and not f.complete}
-            for f in self.files.values()
-        ]
-        refreshable = bool(self.sources)
+        """The files with their runs, and each run's display name, for the page."""
+        files = [{"name": f.name, "compiled": f.compiled, "runs": f.runs} for f in self.files.values()]
 
-        return {"files": files, "version": self._version, "refreshable": refreshable, "loading": loading, "error": self._error}
+        return {"files": files, "names": self._names([run for f in self.files.values() for run in f.runs])}
 
     def catalogue(self, runs: list[str]) -> list[dict]:
         """The plots, with whether any of the runs has data for each and the views of a split plot, [value, title]."""
@@ -119,57 +94,31 @@ class Session:
 
     def figure(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> str:
         """One figure of the runs as Plotly JSON, or one panel of it enlarged; a split plot shows its first node by default."""
+        return self._cached((plot_id, *runs, node, panel), lambda: self.draw(plot_id, runs, node, panel).to_json())
+
+    def draw(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> go.Figure:
+        """One figure of the runs, or one panel of it enlarged; a split plot shows its first node by default."""
         plot = self.config.plot(plot_id)
         node = node or next(iter(self._nodes(plot, runs)), None)
+        lines = self._lines(plot, runs).filter(pl.col("view") == (node or "")).drop("view")
 
-        def draw() -> str:
-            lines = self._lines(plot, runs).filter(pl.col("view") == (node or "")).drop("view")
-            unit = data.unit(plot, self._units())
-            return figures.build(plot, lines, unit, self.config, self._names(runs), panel).to_json()
+        return figures.build(plot, lines, data.unit(plot, self._units()), self.config, self._names(runs), panel)
 
-        return self._cached((plot_id, *runs, node, panel), draw)
+    def table(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> tuple[str, str]:
+        """The lines of a figure as CSV, with a file name: the plot's id and unit."""
+        plot = self.config.plot(plot_id)
+        node = node or next(iter(self._nodes(plot, runs)), None)
+        lines = self._lines(plot, runs)
+        lines = lines.filter(pl.col("view") == (node or "")) if not lines.is_empty() else lines
+        unit = data.unit(plot, self._units()).replace("/", " per ")
+        parts = (plot_id, self.config.labels.get(node, node) if node else "", f"({unit})" if unit else "")
+        name = " ".join(filter(None, parts))
 
-    def _start(self, load: Callable[[], None]) -> None:
-        """Run a load, which publishes what it loads, in a thread of its own after any underway."""
-        def work() -> None:
-            with self._one_load:
-                try:
-                    load()
-                # any failure, not only an unreadable file, ends the load, so the page stops waiting and shows it
-                except Exception as e:
-                    self._error = str(e) or type(e).__name__
-                    print(f"Error: {self._error}", file=sys.stderr, flush=True)
-
-        with self.lock:
-            self._loads = [load for load in self._loads if load.is_alive()]
-
-            if not self._loads:
-                self._report("Starting to load")
-
-            self._error = None
-            self._loads.append(threading.Thread(target=work, daemon=True))
-            self._loads[-1].start()
-
-    def _load(self, source: Path | bytes, name: str, index: int, count: int) -> Iterator[Results]:
-        """Load a results file, the index-th of count, reporting its progress; it is yielded as each plot is prepared."""
-        file = f"{name} ({index}/{count})" if count > 1 else name
-
-        def progress(step: str, done: int, total: int) -> None:
-            self._report(f"Loading {file} · {step}", done, total)
-
-        return results.load(source, name, self.config.plots, progress)
-
-    def _changed(self) -> None:
-        """Forget what was drawn from the files and count up their version, so the page takes them anew."""
-        self._cache.clear()
-        self._version += 1
-
-    def _report(self, text: str, done: int = 0, total: int = 0) -> None:
-        self._progress = {"text": text, "done": done, "total": total}
+        return figures.table(lines, self.config, self._names(runs), panel), f"{name}.csv"
 
     def _lines(self, plot: Plot, runs: list[str]) -> pl.DataFrame:
         """The prepared lines of a plot of the runs, over all its views."""
-        lines = [f.plots[plot.id] for f in self.files.values() if plot.id in f.plots and not f.runs.keys().isdisjoint(runs)]
+        lines = [f.plots[plot.id] for f in self.files.values() if plot.id in f.plots and not set(f.runs).isdisjoint(runs)]
 
         return pl.concat(lines).filter(pl.col("run").is_in(runs)) if lines else pl.DataFrame()
 
@@ -179,8 +128,10 @@ class Session:
         return [] if lines.is_empty() else sorted(v for v in lines.get_column("view").unique().to_list() if v)
 
     def _names(self, runs: list[str]) -> dict[str, str]:
-        """Each run's name in a figure: that within its compiled file, or the file's; the full one where two are alike."""
+        """Each run's display name: that plots.yaml gives its name within its compiled file, or the file's, else the
+        name itself; the full id where two are alike."""
         short = {run: run.removeprefix(f"{f.name}/") for f in self.files.values() for run in f.runs if run in runs}
+        short = {run: self.config.run_names.get(name, name) for run, name in short.items()}
         names = list(short.values())
 
         return {run: short[run] if names.count(short[run]) == 1 else run for run in runs}
@@ -228,6 +179,11 @@ class _Handler(BaseHTTPRequestHandler):
         elif path == "/api/catalogue":
             self._json(self._query(self.session.catalogue, runs))
 
+        elif path.startswith("/api/plots/") and path.endswith(".csv"):
+            plot_id = path.removeprefix("/api/plots/").removesuffix(".csv")
+            csv, name = self._query(self.session.table, plot_id, runs, query.get("node"), query.get("panel"))
+            self._send(csv.encode(), "text/csv", headers={"Content-Disposition": f'attachment; filename="{name}"'})
+
         elif path.startswith("/api/plots/"):
             plot_id = path.removeprefix("/api/plots/")
             figure = self._query(self.session.figure, plot_id, runs, query.get("node"), query.get("panel"))
@@ -249,7 +205,7 @@ class _Handler(BaseHTTPRequestHandler):
                 self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
                 return
 
-        except OSError as e:
+        except (OSError, data.ResultsFileError, ConfigError) as e:
             self._json({"error": str(e)}, HTTPStatus.BAD_REQUEST)
             return
 
@@ -272,11 +228,17 @@ class _Handler(BaseHTTPRequestHandler):
     def _json(self, value: object, status: HTTPStatus = HTTPStatus.OK) -> None:
         self._send(json.dumps(value).encode(), "application/json", status)
 
-    def _send(self, body: bytes, content_type: str, status: HTTPStatus = HTTPStatus.OK) -> None:
+    def _send(
+        self, body: bytes, content_type: str, status: HTTPStatus = HTTPStatus.OK, headers: dict[str, str] | None = None,
+    ) -> None:
         try:
             self.send_response(status)
             self.send_header("Content-Type", f"{content_type}; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+
+            for key, value in (headers or {}).items():
+                self.send_header(key, value)
+
             self.end_headers()
             self.wfile.write(body)
 

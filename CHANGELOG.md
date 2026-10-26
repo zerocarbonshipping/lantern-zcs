@@ -16,38 +16,38 @@ Navigate run writes.
 
 ### Added
 - `lantern [PATH ...]` opens the viewer in the browser with the results files
-  at PATH; a folder loads every `.parquet` file below it, but not below a
-  folder holding a compiled results file, whose samples it already has.
-  Files can also be added on the page, and a Refresh button reloads PATH
-  from disk.
+  at PATH; a folder loads every `.parquet` file below it.
+  Files can also be added on the page, and a Refresh button reads the
+  configuration again and reloads PATH from disk. `--plots DIR` writes every
+  plot of every run as SVG and CSV instead, SVG through the optional kaleido,
+  and `--data FILE` writes the rows of the files as one CSV.
 - A file is never read whole: on loading, Lantern reads a run at a time, only
-  the series the plots name, and keeps each plot's median, band and
-  representative, so a study of thousands of samples loads in about 1 GB.
-  Files load in the background, the page showing the progress.
+  the series the plots name, and keeps each plot's lines.
 - `plots.yaml` declares what is plotted and `labels.yaml` the names, colour
   names and order of the series. `theme.yaml` in the repository gives the
   Center's colours; it is not part of the package, which takes Plotly's
   colours. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
   `cumulative: true` sums a rate over the time steps up to each date.
-  `per_energy: true` divides a per-ton value by the heating value of its
+  `per_gj: true` divides a per-ton value by the heating value of its
   fuel from the file's metadata, e.g. bunker prices and plant costs in USD/GJ.
 - Clicking a panel of a multi-panel plot shows it alone; a select in the
-  toolbar or Escape goes back to all panels. Long panel titles wrap.
-- Ensembles: Lantern opens the compiled results file of a Horizon study, with
-  a run per scenario and its samples, and draws an ensemble's lines and areas
-  as the median with a 5th to 95th percentile band and a dotted line of its
-  representative sample, and stacks as that sample. The representative is
-  chosen as in Lantern 1, from the plots `plots.yaml` gives a `weight`.
-  Each stacked plot also comes as lines, one panel per stacked series with
-  its band, followed by the stack as "<title> (Stacked)".
+  toolbar or Escape goes back to all panels. Long panel titles wrap. The
+  plot and run columns resize by dragging their edges. The modebar downloads
+  the plot as PNG or SVG and the drawn lines as CSV, a row per value.
+- Compiled files: Lantern opens the compiled results file of a Horizon study,
+  with a run per scenario, each a single summary. Each stacked plot also comes
+  as lines, one panel per stacked series, followed by the stack as
+  "<title> (Stacked)".
   Runs are listed in the sidebar, compiled files marked; Ctrl-click compares
   runs, overlaid in a colour each, or for stacks and plots that tell series
-  apart by colour, in a column of panels per run with a shared y axis.
+  apart by colour, in a column of panels per run with a shared y axis. An
+  selected run's colour highlights it in the sidebar; `customize_runs` in
+  `plots.yaml` gives a run a display name and a colour.
 
 ### Removed
 - The report CSV input, all command-line options, the HTML and PNG outputs,
-  manual and non-median representatives, the representatives CSV, and the pandas, numpy, kaleido and tqdm
-  dependencies.
+  the representative runs, percentile bands and representatives CSV, the
+  `weight` plot key, and the pandas, numpy, kaleido and tqdm dependencies.
 
 ## [1.0.0] - 2026-08-18
 

@@ -28,6 +28,8 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["ruff", "reuse"]
+# --plots renders SVG through kaleido, which needs Chrome: plotly_get_chrome installs one
+export = ["kaleido>=1.0"]
 
 [project.urls]
 Homepage = "https://www.zerocarbonshipping.com/"

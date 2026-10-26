@@ -6,13 +6,14 @@ const $ = (id) => document.getElementById(id);
 const query = (params) => new URLSearchParams(Object.entries(params).flatMap(([k, v]) => [v].flat().filter(Boolean).map((x) => [k, x]))).toString();
 let files = [];
 let plots = [];
+let names = {};
 let runs = [];
 let current = null;
 let panels = [];
 let cells = [];
 let requests = 0;
-let polling = false;
-let version = null;
+let offline = false;
+let checking = false;
 
 async function api(path, options) {
   const response = await fetch(path, options);
@@ -22,13 +23,12 @@ async function api(path, options) {
 }
 
 // every loaded run, in the order of the sidebar
-const allRuns = () => files.flatMap((file) => Object.keys(file.runs));
+const allRuns = () => files.flatMap((file) => file.runs);
 
 // take the loaded files from the server; the selected runs stay selected while they are loaded
 async function load(state) {
   files = state.files;
-  version = state.version;
-  $("refresh").hidden = !state.refreshable;
+  names = state.names;
   const kept = runs.filter((id) => allRuns().includes(id));
   await select(kept.length ? kept : allRuns().slice(0, 1));
 }
@@ -46,14 +46,13 @@ function pick(id, event) {
   if (next.length) select(next);
 }
 
-// upload results files, which the server then loads in the background; a file is named after itself, without the extension
+// upload results files, which the server loads before it answers; a file is named after itself, without the extension
 async function upload(list) {
   const errors = [];
   let state = null;
 
   for (const file of [...list].filter((f) => f.name.endsWith(".parquet"))) {
     const name = file.name.replace(/\.parquet$/, "");
-    progress({ loading: { text: `Uploading ${name}` } });
 
     try {
       state = await api("/api/files", { method: "POST", headers: { "X-Filename": encodeURIComponent(name) }, body: file });
@@ -62,73 +61,61 @@ async function upload(list) {
     }
   }
 
-  state = state || await api("/api/state");
-  await watch(state);
-  if (errors.length) $("message").textContent = errors.join(" ");
+  $("message").textContent = errors.join(" ");
+  if (state) await load(state);
 }
 
-// show the progress of a load underway and poll it until no load is left, taking the files as each plot is prepared
-async function watch(state) {
-  progress(state);
-  if (!state.loading || polling) return;
-  polling = true;
+// ask the server now and then whether it still runs; one started again is taken up with its files
+async function check() {
+  if (checking) return;
+  checking = true;
 
-  while (state.loading) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    state = await api("/api/state");
-    progress(state);
-    if (state.version !== version) await load(state);
+  try {
+    const state = await api("/api/state");
+    if (offline) await load(state);
+    offline = false;
+  } catch {
+    offline = true;
+  } finally {
+    checking = false;
   }
 
-  polling = false;
-  await load(state);
+  $("offline").hidden = !offline;
 }
 
-// the progress bar shows the steps of the file loading, or runs to and fro until it knows them; an error replaces it
-function progress(state) {
-  const loading = state.loading;
-  $("loading").hidden = !loading;
-  $("refresh").disabled = Boolean(loading);
-  $("message").textContent = state.error || "";
-  if (!loading) return;
-
-  $("step").textContent = $("step").title = loading.text;
-
-  if (loading.total) {
-    $("progress").max = loading.total;
-    $("progress").value = loading.done;
-  } else {
-    $("progress").removeAttribute("value");
-  }
+// whether a colour, as "#rgb", "#rrggbb" or "rgb(r, g, b)", is light enough for dark text
+function light(color) {
+  const hex = color.startsWith("#") ? color.slice(1) : null;
+  const [r, g, b] = hex
+    ? (hex.length === 3 ? [...hex].map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)))
+    : color.match(/\d+/g).map(Number);
+  return 0.299 * r + 0.587 * g + 0.114 * b > 160;
 }
 
-function runButton(id, text, representative) {
-  const sample = representative ? `\nRepresentative sample: ${representative}` : "";
-  const title = `${text}${sample}\nCtrl-click to compare it with the selected runs`;
+function runButton(id, text) {
+  const title = `${text}\nCtrl-click to compare it with the selected runs`;
   const button = Object.assign(document.createElement("button"), { textContent: text, title, className: "run" });
   button.classList.toggle("active", runs.includes(id));
+  button.dataset.id = id;
   button.onclick = (event) => pick(id, event);
   return button;
 }
 
 function render() {
-  // a file of one run is that run; a compiled file lists its runs with their number of samples
+  // a file of one run is that run; a compiled file lists its runs
   $("runs").replaceChildren(...files.map((file) => {
     const item = document.createElement("li");
     const head = document.createElement("div");
     const remove = Object.assign(document.createElement("button"), { textContent: "×", title: `Unload ${file.name}`, className: "remove" });
     remove.onclick = async () => load(await api(`/api/files/${encodeURIComponent(file.name)}`, { method: "DELETE" }));
-    // a file still loading would come back with its next plot
-    remove.hidden = file.loading;
 
     if (file.compiled) {
       const tag = Object.assign(document.createElement("small"), { textContent: "compiled" });
       item.className = "compiled";
       head.append(tag, Object.assign(document.createElement("span"), { textContent: file.name, title: file.name }), remove);
-      item.append(head, ...Object.entries(file.runs).map(([id, samples]) =>
-        runButton(id, `${id.slice(file.name.length + 1)} · ${samples} sample${samples > 1 ? "s" : ""}`, file.representatives[id])));
+      item.append(head, ...file.runs.map((id) => runButton(id, names[id])));
     } else {
-      head.append(runButton(Object.keys(file.runs)[0], file.name), remove);
+      head.append(runButton(file.runs[0], names[file.runs[0]]), remove);
       item.append(head);
     }
 
@@ -179,10 +166,20 @@ async function show(id, node, panel = null) {
 
   // the figure lists the full plot's panels, [value, title], for the panel select, and the panel of each cell
   // for a click on it; an enlarged panel stays enlarged in other runs that have it, else the server draws all panels
-  const figure = await api(`/api/plots/${encodeURIComponent(id)}?${query({ run: runs, node, panel })}`);
+  const params = query({ run: runs, node, panel });
+  const figure = await api(`/api/plots/${encodeURIComponent(id)}?${params}`);
   if (request !== requests) return;
   ({ panels, cells } = figure.layout.meta);
   if (!panels.some(([value]) => value === panel)) panel = null;
+
+  // a selected run's button is highlighted in its colour, that of its lines when runs are overlaid, with text that
+  // reads on it
+  for (const button of $("runs").querySelectorAll(".run")) {
+    const color = figure.layout.meta.colors[button.dataset.id];
+    button.classList.toggle("colored", Boolean(color));
+    button.style.setProperty("--color", color || "");
+    button.style.setProperty("--text", color && light(color) ? "#1d2327" : "#fff");
+  }
 
   $("panel").hidden = panels.length < 2;
   $("panel").replaceChildren(new Option("All panels", ""), ...panels.map(([value, title]) => new Option(title, value, false, value === panel)));
@@ -190,9 +187,24 @@ async function show(id, node, panel = null) {
   // plotly fills the space below the toolbar; a taller panel grid keeps its own height and scrolls
   $("figure").style.minHeight = `${figure.layout.height}px`;
   Object.assign(figure.layout, size());
-  // a redraw of the same view, as when a load publishes more plots, keeps the zoom
+  // a redraw of the same view, as after a file is added or removed, keeps the zoom
   figure.layout.uirevision = JSON.stringify([id, runs, node, panel]);
-  await Plotly.react($("figure"), figure.data, figure.layout, { displaylogo: false });
+  // the modebar gets a second camera that downloads the plot as SVG, next to the PNG one, and a disk that downloads
+  // the drawn lines as CSV
+  const svg = {
+    name: "Download plot as SVG", icon: Plotly.Icons.camera,
+    click: (gd) => Plotly.downloadImage(gd, { format: "svg", filename: id }),
+  };
+  const csv = {
+    name: "Download data as CSV", icon: Plotly.Icons.disk,
+    click: () => window.location.assign(`/api/plots/${encodeURIComponent(id)}.csv?${params}`),
+  };
+  const config = {
+    displaylogo: false, toImageButtonOptions: { filename: id, scale: 2 },
+    // the downloads first, then the zoom tools; the selections and hover toggles are left out
+    modeBarButtons: [["toImage", svg, csv], ["zoom2d", "pan2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"]],
+  };
+  await Plotly.react($("figure"), figure.data, figure.layout, config);
   $("figure").removeAllListeners("plotly_click");
   if (!panel && panels.length > 1) $("figure").on("plotly_click", enlarge);
 }
@@ -212,15 +224,56 @@ $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
 $("node").onchange = (e) => show(current, e.target.value);
 $("panel").onchange = (e) => show(current, $("node").value, e.target.value || null);
 window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("node").value); };
-$("refresh").onclick = async () => {
+$("refresh").onclick = async (e) => {
+  e.target.disabled = true;
+
   try {
-    await watch(await api("/api/refresh", { method: "POST" }));
+    await load(await api("/api/refresh", { method: "POST" }));
+    $("message").textContent = "";
   } catch (error) {
     $("message").textContent = error.message;
   }
+
+  e.target.disabled = false;
 };
 window.onresize = () => { if ($("figure").data) Plotly.relayout($("figure"), size()); };
+
+// the columns resize by dragging the gutters beside them; the widths are kept in this browser
+function widths(set = null) {
+  try {
+    if (set) localStorage.setItem("lantern.columns", JSON.stringify(set));
+    return JSON.parse(localStorage.getItem("lantern.columns")) || {};
+  } catch {
+    return {};
+  }
+}
+
+for (const [column, width] of Object.entries(widths())) document.body.style.setProperty(`--${column}`, `${width}px`);
+
+for (const gutter of document.querySelectorAll(".gutter")) {
+  const column = gutter.dataset.column;
+  const sign = column === "nav" ? 1 : -1;
+  gutter.onpointerdown = (down) => {
+    const start = document.querySelector(column).offsetWidth;
+    let width = start;
+    gutter.setPointerCapture(down.pointerId);
+    gutter.classList.add("dragging");
+    document.body.classList.add("resizing");
+    gutter.onpointermove = (move) => {
+      width = Math.min(Math.max(start + sign * (move.clientX - down.clientX), 140), 600);
+      document.body.style.setProperty(`--${column}`, `${width}px`);
+      requestAnimationFrame(window.onresize);
+    };
+    gutter.onpointerup = () => {
+      gutter.onpointermove = gutter.onpointerup = null;
+      gutter.classList.remove("dragging");
+      document.body.classList.remove("resizing");
+      widths({ ...widths(), [column]: width });
+    };
+  };
+}
 window.ondragover = (e) => e.preventDefault();
 window.ondrop = (e) => { e.preventDefault(); upload(e.dataTransfer.files); };
 
-api("/api/state").then(async (state) => { await load(state); await watch(state); });
+api("/api/state").then(load);
+setInterval(check, 2000);

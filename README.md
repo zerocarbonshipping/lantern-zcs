@@ -28,56 +28,53 @@ pip install .
 navigate my_deck.nav -d ./assumptions     # writes my_deck.parquet
 lantern my_deck.parquet                   # opens the viewer
 lantern study/                            # every .parquet file in study/ and below
+lantern --plots out/ study/               # every plot of every run as SVG and CSV, no viewer
+lantern --data rows.csv study/            # the rows of the files as one CSV, no viewer
 ```
 
-Files can also be added or dropped on the page, and Refresh
-reloads the paths Lantern was opened with from disk, e.g. after a new run
-overwrote them; it shows the files there now, and files added on the page
-stay. A folder holding a compiled results file (see Ensembles) is not
-searched below, as its subfolders hold the samples already in it; open a
-subfolder itself to see its files. The loaded runs are listed in the sidebar,
+`--plots` writes `out/<run>/<plot>.svg` and `.csv`, one per view of a plot
+that has a node select. It renders SVG through kaleido, installed with
+`pip install '.[export]'`, which needs Chrome: `plotly_get_chrome` installs
+one. `--data` writes every series and date of the files, with a `run`
+column, and needs nothing else.
+
+Files can also be added or dropped on the page. Refresh reads `plots.yaml`
+and `labels.yaml` again, so an edit shows without a restart, and reloads the
+paths Lantern was opened with from disk, e.g. after a new run overwrote them;
+it shows the files there now, and files added on the page stay. The loaded
+runs are listed in the sidebar,
 and the plots show the selected one; Ctrl-click (Cmd-click on a Mac) more runs to compare
 them. Lines of several runs share the panels, a colour per run; stacked plots,
 and plots that tell series apart by colour, get a column of panels per run with
 a shared y axis. Click a panel of a multi-panel plot to enlarge it; Escape or
-"All panels" goes back.
+"All panels" goes back. The plot's modebar has two cameras, one downloading
+the plot as PNG and one as SVG, and a disk that downloads the drawn lines as
+CSV, a row per run, panel, label and date, in the file's unit.
 
-### Ensembles
+### Compiled files
 
-An uncertainty study, such as one run by
-[Horizon](https://github.com/zerocarbonshipping/horizon-zcs), writes one
-results file per sample, and compiles them into one file with a run per
-scenario and its samples. Lantern opens a compiled file like any other and
-draws an ensemble's lines and areas as the median of its samples with a band
-from the 5th to the 95th percentile and a dotted line of its representative
-sample. Stacked plots show the representative sample, as medians and
-percentiles do not add up. Each stacked plot also comes as lines, one panel per
-stacked series with its band, and is listed after it as "(Stacked)". A sample
-without a series counts it as zero, since Navigate leaves out series that are
-negligible throughout. The sidebar marks a compiled file and lists its runs,
-each with its number of samples, to select or compare; a run's tooltip names
-its representative sample.
-
-The representative sample is the one closest to the median throughout. At
-every date, the series of each plot with a `weight` in `plots.yaml` rank the
-samples as percentiles; a sample scores its mean squared distance from the
-50th percentile, averaged over each plot's series and weighted over the plots,
-and the lowest score wins. By default the weights are those of Lantern 1:
-emissions 0.4, installed power 0.3, fuel consumed by fuel type 0.2 and
-expenses 0.1.
+A study, such as one run by
+[Horizon](https://github.com/zerocarbonshipping/horizon-zcs), compiles its
+scenarios into one results file with a run per scenario, each a single
+summary: every series has one value per date. Lantern opens a compiled file
+like any other, marks it in the sidebar and lists its runs under it, to
+select or compare. Each stacked plot also comes as lines, one panel per
+stacked series, and is listed after it as "(Stacked)".
 
 Two YAML files in the package configure Lantern:
 
 - [`lantern/plots.yaml`](lantern/plots.yaml) says what is plotted: the series
-  of each plot, its panels, units and axes. Its header lists the keys.
+  of each plot, its panels, units and axes. [`PLOTS.md`](PLOTS.md) is its
+  manual.
 - [`lantern/labels.yaml`](lantern/labels.yaml) names the labels that tell
   series apart, such as fuels and fleets, gives each a colour name, such as
   `blue_4`, and sets the stacking order.
 
 The colours come from [`theme.yaml`](theme.yaml), the Center's theme, next to
 the package in this repository. It gives the hex value of each colour name and
-the colours, in turn, of the other labels. It is not part of the package:
-Lantern installed from a package takes Plotly's colours.
+the colours, in turn, of the other labels and of runs compared in one panel;
+`customize_runs` in `plots.yaml` names a run for display and fixes its colour. It is not part
+of the package: Lantern installed from a package takes Plotly's colours.
 
 Lantern stops with the file and line when a value YAML would read as another
 type, such as `no` or `2030`, is not quoted, or a plot has an unknown key.

@@ -1,12 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Draw the prepared series of one or more runs as a Plotly figure, one panel per value of the plot's panels.
+"""Draw the prepared lines of one or more runs as a Plotly figure, one panel per value of the plot's panels.
 
-An ensemble's lines and areas are its median with a band between the percentiles of its samples and a dotted line of
-its representative sample; stacks show the representative sample, as medians and percentiles do not add up. Several
-runs share the panels in a colour each where colour tells nothing else, that is where no panel's layer has more than
-one label; stacks and the other plots get a column of panels per run.
+Several runs share the panels in a colour each where colour tells nothing else, that is where no panel's layer has more
+than one label; stacks and the other plots get a column of panels per run.
 """
 
 from __future__ import annotations
@@ -20,8 +18,7 @@ import plotly.graph_objects as go
 import polars as pl
 from plotly.subplots import make_subplots
 
-from lantern.config import Config, Plot
-from lantern.data import BAND
+from lantern.config import Config, Plot, Style
 
 # unit head to (base unit, power of ten of the head); counts and money keep their unit, plotly's ticks scale them
 _SCALABLE = {"GJ": ("J", 9), "MJ": ("J", 6), "J": ("J", 0), "t": ("t", 0), "tCO2e": ("tCO2e", 0), "MW": ("W", 6), "W": ("W", 0)}
@@ -35,18 +32,21 @@ def build(
 ) -> go.Figure:
     """Draw one plot of the runs, named in order in runs, or only the given panel, enlarged."""
     rank = _rank(config)
+    style = config.style
+    # every selected run has a colour, for the sidebar, drawn in only when the runs are overlaid
+    free = itertools.cycle(style.palette)
+    run_colors = {run: _run_color(run, style) or next(free) for run in runs}
     present = set(series.get_column("run").unique().to_list())
     runs = {run: name for run, name in runs.items() if run in present}
     panels = sorted(series.get_column("panel").unique().to_list(), key=rank)
     labels = sorted(series.get_column("label").unique().to_list())
-    style = config.style
     overlay = len(runs) > 1 and _overlays(plot, series)
     tiled = len(runs) > 1 and not overlay
     # overlaid, a panel of one label needs only the runs told apart, in the legend too
     by_run = overlay and _most_labels(series, "panel") <= 1
 
     if overlay:
-        colors = dict(zip(runs, itertools.cycle(style.palette)))
+        colors = run_colors
 
     else:
         free = itertools.cycle(style.palette)
@@ -59,7 +59,7 @@ def build(
         series, panels = series.filter(pl.col("panel") == panel), [panel]
 
     divisor, unit = scale_unit(series.select(pl.col("value").abs().max()).item() or 0.0, unit)
-    series = series.with_columns(pl.col("low", "value", "high", "representative") / divisor)
+    series = series.with_columns(pl.col("value") / divisor)
 
     # a cell per panel, or tiled per panel and run: a row per panel and a column per run, sharing the y axis
     columns = list(runs) if tiled else [None]
@@ -67,8 +67,9 @@ def build(
     rows, cols = (len(panels), len(columns)) if tiled and len(panels) > 1 else _shape(len(cells))
     titles = [" · ".join(filter(None, (config.labels.get(p, p), runs.get(run)))) for p, run in cells]
     figure = _grid(titles, rows, cols, ("rows" if len(panels) > 1 else "all") if tiled else False)
-    # the page's panel select lists the panels, and a click on a cell enlarges its panel
-    figure.update_layout(meta={"panels": meta, "cells": [p for p, _ in cells]})
+    # the page's panel select lists the panels, a click on a cell enlarges its panel and a run's colour marks it in the
+    # run list
+    figure.update_layout(meta={"panels": meta, "cells": [p for p, _ in cells], "colors": run_colors})
     shown = set()
 
     # traces go in panel, run, layer and label order, which sets the stacking and the legend
@@ -89,20 +90,9 @@ def build(
         elif overlay:
             name = f"{name} · {runs[run]}"
 
-        # an ensemble's band, but not in a stack: the upper percentile, then the lower one filled up to it
-        banded = (line.get_column("low") != line.get_column("high")).any()
-
-        if layer.draw != "stack" and banded:
-            for column, quantile in (("high", BAND[1]), ("low", BAND[0])):
-                figure.add_trace(go.Scatter(
-                    x=x, y=line.get_column(column).to_list(), mode="lines", name=f"{name} {quantile:.0%}",
-                    fill="tonexty" if column == "low" else None, legendgroup=group, showlegend=False,
-                    line={"color": color, "width": 0},
-                ), row=row, col=col)
-
         trace = go.Scatter(
             x=x, y=line.get_column("value").to_list(), mode="lines", name=name, legendgroup=group,
-            showlegend=group not in shown, line={"color": color, "width": _LINE_WIDTH, "dash": layer.dash},
+            showlegend=group not in shown, line={"color": color, "width": _LINE_WIDTH, "dash": layer.line},
         )
 
         if layer.draw == "stack":
@@ -114,21 +104,34 @@ def build(
         shown.add(group)
         figure.add_trace(trace, row=row, col=col)
 
-        # the representative sample over the band, after it so as not to break the band's fill
-        if layer.draw != "stack" and banded and line.get_column("representative").is_not_null().any():
-            figure.add_trace(go.Scatter(
-                x=x, y=line.get_column("representative").to_list(), mode="lines", name=f"{name} representative",
-                legendgroup=group, showlegend=False, hoverinfo="skip",
-                line={"color": color, "width": _LINE_WIDTH / 2, "dash": "dot"},
-            ), row=row, col=col)
-
     figure.update_layout(
         template="plotly_white", hovermode="x unified", legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
     )
-    figure.update_yaxes(rangemode="tozero" if plot.from_zero else "normal")
+    figure.update_yaxes(rangemode="tozero" if plot.y_axis == "zero" else "normal")
     figure.update_yaxes(title_text=unit, col=1)
 
     return figure
+
+
+def table(series: pl.DataFrame, config: Config, runs: dict[str, str], panel: str | None = None) -> str:
+    """The lines of a figure as CSV, a row per value: run, panel, label, date, value, named as displayed and in the
+    figure's order; the values as the file holds them, in the plot's unit."""
+    if panel is not None:
+        series = series.filter(pl.col("panel") == panel)
+
+    names = {"run": runs, "panel": config.labels, "label": config.labels}
+
+    if series.is_empty():
+        return ",".join((*names, "date", "value")) + "\n"
+
+    named = [pl.col(k).replace_strict(v, default=pl.col(k)).cast(pl.String) for k, v in names.items()]
+
+    return series.sort("layer").with_columns(named).select(*names, "date", "value").write_csv()
+
+
+def _run_color(run: str, style: Style) -> str | None:
+    """The colour plots.yaml gives a run: by its id, else by its name within its compiled file."""
+    return style.run_colors.get(run) or style.run_colors.get(run.partition("/")[2] or run)
 
 
 def _overlays(plot: Plot, series: pl.DataFrame) -> bool:
