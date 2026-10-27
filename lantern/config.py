@@ -1,7 +1,8 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Read the packaged plots.yaml (what to plot) and labels.yaml (series names, colours and order), and the theme."""
+"""Read plots.yaml (what to plot) from the working folder or the home folder, and the packaged labels.yaml (series names,
+colours and order) and theme.yaml (the colours), which plots.yaml can override entry by entry."""
 
 from __future__ import annotations
 
@@ -19,11 +20,15 @@ _PLOT_KEYS = {"title", "unit", "panels", "select_view", "y_axis", "variants", "l
 _AXES = {"zero", "fit"}
 _VARIANTS = {"lines", "stack"}
 _THEME_KEYS = {"swatches", "palette"}
-# the key of plots.yaml that is not a section
+# the keys of plots.yaml that are not sections: the display names and colours of runs, and overrides of entries of
+# labels.yaml and theme.yaml
 _RUNS = "customize_runs"
+_LABELS = "labels"
+_THEME = "theme"
 _RUN_KEYS = {"name", "color"}
-# the Center's theme, in the repository next to the package but not part of it
-_THEME = Path(__file__).resolve().parent.parent / "theme.yaml"
+_LABEL_KEYS = {"name", "color"}
+# where plots.yaml is looked for, in order
+PLOTS_FILES = (Path.cwd() / "plots.yaml", Path.home() / "plots.yaml")
 
 
 class ConfigError(ValueError):
@@ -87,18 +92,13 @@ class Config:
 
 
 def load_config() -> Config:
-    """Read plots.yaml, labels.yaml and the theme, if there is one."""
-    plots, labels, theme = _package("plots.yaml"), _package("labels.yaml"), _theme()
-    swatches = theme.get("swatches", {})
+    """Read plots.yaml, the first of PLOTS_FILES there is, and the packaged labels.yaml and theme.yaml, with the
+    entries plots.yaml overrides."""
+    plots = _plots_file()
     runs = _runs(plots.pop(_RUNS, None) or {})
-
-    # the groups only organise the file; the order of the labels in it is the stacking order
-    entries = [(label, value) for group in labels.values() for label, value in group.items()]
-    entries = [(label, value if isinstance(value, dict) else {"name": value}) for label, value in entries]
-    duplicates = sorted({label for label, _ in entries if sum(other == label for other, _ in entries) > 1})
-
-    if duplicates:
-        raise ConfigError(f"labels.yaml lists {', '.join(duplicates)} more than once")
+    theme = _theme(plots.pop(_THEME, None) or {})
+    swatches = theme["swatches"]
+    entries = _labels(plots.pop(_LABELS, None) or {})
 
     return Config(
         plots=tuple(
@@ -111,8 +111,7 @@ def load_config() -> Config:
         style=Style(
             colors={label: color for label, value in entries if (color := _color(value.get("color"), swatches))},
             run_colors={run: color for run, value in runs.items() if (color := _color(value.get("color"), swatches))},
-            # without a theme, Plotly's own colours
-            palette=tuple(_color(c, swatches) or c for c in theme.get("palette", plotly.colors.qualitative.Plotly)),
+            palette=tuple(_color(c, swatches) or c for c in theme["palette"]),
         ),
     )
 
@@ -131,21 +130,58 @@ def _runs(raw: object) -> dict[str, dict]:
     return runs
 
 
+def _plots_file() -> dict:
+    """The entries of the first plots.yaml there is, in the working folder or the home folder."""
+    for path in PLOTS_FILES:
+        if path.is_file():
+            return _read(path.read_text("utf-8"), str(path)) or {}
+
+    raise ConfigError(f"no plots.yaml in the working folder or the home folder: {' or '.join(map(str, PLOTS_FILES))}")
+
+
 def _package(name: str) -> dict:
-    return _read(files("lantern").joinpath(name).read_text("utf-8"), name)
+    return _read(files("lantern").joinpath(name).read_text("utf-8"), name) or {}
 
 
-def _theme() -> dict:
-    if not _THEME.is_file():
-        return {}
+def _theme(override: object) -> dict:
+    """The packaged theme with the entries the theme key of plots.yaml overrides: swatches by name, the palette whole;
+    without any palette, Plotly's own colours."""
+    theme = _package("theme.yaml")
 
-    text = _THEME.read_text("utf-8")
-    unknown = set(yaml.safe_load(text) or {}) - _THEME_KEYS
+    if not isinstance(override, dict) or set(override) - _THEME_KEYS:
+        raise ConfigError(f"plots.yaml: {_THEME} takes {' and '.join(sorted(_THEME_KEYS))}")
 
-    if unknown:
-        raise ConfigError(f"{_THEME} has unknown keys: {', '.join(sorted(unknown))}")
+    swatches = theme.get("swatches", {}) | override.get("swatches", {})
+    palette = override.get("palette") or theme.get("palette") or plotly.colors.qualitative.Plotly
 
-    return _read(text, str(_THEME)) or {}
+    return {"swatches": swatches, "palette": palette}
+
+
+def _labels(override: object) -> list[tuple[str, dict]]:
+    """The entries of the packaged labels.yaml, (label, {name, color}), in stacking order, with those the labels key of
+    plots.yaml overrides, by label; a label new there comes after the packaged ones."""
+    labels = _package("labels.yaml")
+    # the groups only organise the file; the order of the labels in it is the stacking order
+    entries = [(label, value) for group in labels.values() for label, value in group.items()]
+    entries = [(label, value if isinstance(value, dict) else {"name": value}) for label, value in entries]
+    duplicates = sorted({label for label, _ in entries if sum(other == label for other, _ in entries) > 1})
+
+    if duplicates:
+        raise ConfigError(f"labels.yaml lists {', '.join(duplicates)} more than once")
+
+    if not isinstance(override, dict):
+        raise ConfigError(f"plots.yaml: {_LABELS} must map labels to a display name or to name and color")
+
+    override = {label: value if isinstance(value, dict) else {"name": value} for label, value in override.items()}
+
+    for label, value in override.items():
+        if set(value) - _LABEL_KEYS or not all(isinstance(v, str) for v in value.values()):
+            raise ConfigError(f"plots.yaml: label '{label}' takes a display name, or name and color")
+
+    entries = [(label, value | override.get(label, {})) for label, value in entries]
+    known = {label for label, _ in entries}
+
+    return entries + [(label, value) for label, value in override.items() if label not in known]
 
 
 def _read(text: str, name: str) -> dict:

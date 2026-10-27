@@ -2,14 +2,23 @@
 # SPDX-License-Identifier: Apache-2.0
 
 # Lantern's plot catalogue: which series each plot shows, its panels and axes.
-# The names, colours and order of the labels are in labels.yaml.
+# Lantern reads it from the folder it is started in, else from the home folder.
+# The names, colours and order of the labels are in the package's labels.yaml,
+# the colours in its theme.yaml.
 #
 # Plots are listed under their section; a plot's id is "<section>_<key>".
 # PLOTS.md in the repository is the manual.
 #
-# customize_runs, which is not a section, gives a run a display name and a colour by its
-# name, as labels.yaml does a label: a colour name of the theme or a hex value.
-# Runs not listed are shown as named and take the palette in turn.
+# Three keys are not sections:
+#   customize_runs  gives a run a display name and a colour by its name, as
+#                   labels.yaml does a label: a colour name of the theme or a hex
+#                   value. Runs not listed are shown as named and take the palette
+#                   in turn.
+#   labels          overrides entries of labels.yaml by label, "label: Display
+#                   name" or "label: {name: Display name, color: blue_5}"; a label
+#                   not in labels.yaml comes after its labels
+#   theme           overrides entries of theme.yaml: swatches by colour name, and
+#                   the palette as a whole
 #
 # Plot keys:
 #   title        heading of the plot
@@ -48,10 +57,14 @@
 # such as no, on or 2030, must be quoted; Lantern stops at its line otherwise.
 
 customize_runs:
-  no_regulation:     {name: No regulation, color: grey_4}
-  weak_regulation:   {name: Weak regulation, color: yellow_4}
-  mid_regulation:    {name: Mid regulation, color: blue_4}
-  strong_regulation: {name: Strong regulation, color: green_4}
+  no_regulation:     {name: No regulation, color: black_5}
+  weak_regulation:   {name: Weak regulation, color: yellow_5}
+  mid_regulation:    {name: Mid regulation, color: blue_5}
+  strong_regulation: {name: Strong regulation, color: green_5}
+
+labels: {}
+
+theme: {}
 
 main:
   emission_absolute:

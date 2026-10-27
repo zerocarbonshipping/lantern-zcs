@@ -94,5 +94,5 @@ jobs:
       - name: Install built wheel
         run: pip install "$(ls dist/*.whl)"
 
-      - name: Load the packaged catalogue
+      - name: Load the catalogue with the installed package
         run: python -c "from lantern.config import load_config; print(len(load_config().plots), 'plots')"

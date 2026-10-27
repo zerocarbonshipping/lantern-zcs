@@ -18,15 +18,20 @@ Navigate run writes.
 - `lantern [PATH ...]` opens the viewer in the browser with the results files
   at PATH; a folder loads every `.parquet` file below it.
   Files can also be added on the page, and a Refresh button reads the
-  configuration again and reloads PATH from disk. `--plots DIR` writes every
-  plot of every run as SVG and CSV instead, SVG through the optional kaleido,
-  and `--data FILE` writes the rows of the files as one CSV.
+  configuration again and reloads PATH from disk. `--plot ID[RUN,...]`
+  writes one plot as PNG into `plots/` instead, through the optional kaleido
+  and with a progress bar, of each run or of the runs in brackets together,
+  by the ids `--list` prints. `--data` writes the rows of the files as
+  `data.csv`.
 - A file is never read whole: on loading, Lantern reads a run at a time, only
-  the series the plots name, and keeps each plot's lines.
-- `plots.yaml` declares what is plotted and `labels.yaml` the names, colour
-  names and order of the series. `theme.yaml` in the repository gives the
-  Center's colours; it is not part of the package, which takes Plotly's
-  colours. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
+  the series the plots name, and keeps each plot's lines. Polars runs on one
+  thread unless `POLARS_MAX_THREADS` says otherwise, as its many small queries
+  load a file of many runs up to ten times slower on all cores.
+- `plots.yaml`, read from the folder Lantern is started in or else from the
+  home folder, declares what is plotted; the packaged `labels.yaml` gives the
+  names, colour names and order of the series and `theme.yaml` the Center's
+  colours, the palettes of its chart in shades 0 to 8. The `labels` and
+  `theme` keys of `plots.yaml` override their entries. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
   `cumulative: true` sums a rate over the time steps up to each date.
   `per_gj: true` divides a per-ton value by the heating value of its
   fuel from the file's metadata, e.g. bunker prices and plant costs in USD/GJ.

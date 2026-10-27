@@ -5,10 +5,133 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Lantern
 
-Lantern shows the results of [Navigate](https://github.com/zerocarbonshipping/navigate-zcs),
-the open-source maritime transition model, as interactive Plotly plots in the
-browser. Every Navigate run writes its results to `<deck>.parquet`; Lantern
-reads those files.
+Lantern is a local web app that plots the results of
+[Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
+open-source maritime transition model. Every Navigate run writes a Parquet
+results file; Lantern opens one or many of them, prepares the plots that
+[`plots.yaml`](plots.yaml) declares and serves them as interactive
+Plotly figures to the browser. It can also write the same plots as PNG and the
+raw rows as CSV without a browser.
+
+It is a small Python package, about 1 200 lines, with a static page of plain
+JavaScript and no build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
+
+## Install
+
+```bash
+pip install lantern-zcs             # the package
+pip install 'lantern-zcs[export]'   # plus kaleido, for PNG export
+pip install -e '.[dev]'             # a checkout, with ruff and reuse
+```
+
+PNG export renders through [kaleido](https://github.com/plotly/Kaleido), which
+drives a Chrome instance. The `plotly_get_chrome` command installs one. Depending on the development evironment (WSL) other dependencies might exist.
+
+## Use
+
+```bash
+navigate my_deck.nav -d ./assumptions   # writes my_deck.parquet
+lantern my_deck.parquet                 # opens the viewer on that run
+lantern study/ other.parquet            # every .parquet below study/, and the file
+lantern --list e2e.parquet              # the runs, and the ids of the plots with data
+lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.png
+lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' e2e.parquet   # the two runs in one figure
+lantern --data study/                   # every row of the files as data.csv
+```
+
+| Argument | Meaning |
+|---|---|
+| `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
+| `--plot ID[RUN,...]` | no viewer: write one plot as PNG, 1920 by 1080 pixels, as the viewer first opens it: a plot with a view select in its first view. `ID` alone writes it for each run, as `plots/<run>/<id>.png` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.png`. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
+| `--list` | no viewer: print the loaded runs and the id, section and title of every plot with data, for `--plot` |
+| `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder. Needs no kaleido. |
+| `-h`, `--help` | the arguments |
+
+The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
+file that is not a results file, a bad YAML value, a PNG that cannot be
+rendered, print `Error: ...` and exit with 1. The viewer listens on
+`127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
+
+### The page
+
+- **Runs** are listed in the right column, a plain file as one run and a
+  compiled file with its runs under it. Click selects a run; Ctrl-click
+  (Cmd-click on a Mac) adds or removes one, to compare. A selected run's
+  button takes its colour.
+- **Plots** are listed by section on the left; a plot none of the selected
+  runs has data for is greyed out.
+- **Views and panels**: a plot with `select_view` shows one node, fuel or
+  attribute at a time, chosen in the toolbar. Clicking a panel of a
+  multi-panel plot enlarges it; the panel select or Escape goes back.
+- **Comparing**: lines of several runs share the panels, a colour per run.
+  Stacks, and plots whose series are told apart by colour, get a column of
+  panels per run with a shared y axis.
+- **Downloads**: the modebar has a camera for PNG, one for SVG and a disk for
+  the drawn lines as CSV, a row per run, panel, label and date.
+- **Files**: Add files, or drop them on the page, uploads them to the server;
+  × unloads one. Refresh reads `plots.yaml` again and reloads the paths
+  Lantern was started with from disk, so an edited catalogue or an overwritten
+  run shows without a restart. Files added on the page stay.
+- The column widths are draggable and kept in the browser. An offline badge
+  shows when the server is gone; a restarted server is picked up.
+
+## Configuration
+
+Three YAML files. The catalogue is the user's and travels with a study; the
+other two are part of the package.
+
+| File | Where | What it holds | Manual |
+|---|---|---|---|
+| `plots.yaml` | the folder Lantern is started in, else the home folder; this repository's is [`plots.yaml`](plots.yaml) in its root | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`PLOTS.md`](PLOTS.md) |
+| [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
+| [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, and the palette for labels and runs without a colour | header of the file |
+
+Without a `plots.yaml` in either place Lantern stops and says so.
+
+The split is deliberate: `plots.yaml` says *what* is plotted and nothing
+about looks, apart from the overrides; `labels.yaml` says what the series are
+called and in which order and colour name they come; `theme.yaml` says what a
+colour name is.
+
+`config.load_config` validates all three at start and on Refresh. It stops
+with the file and line when an unquoted value reads as another type, such as
+`no`, `on` or `2030`, and with the plot's id on an unknown key, `total`
+together with `split_by`, a bad `y_axis` or malformed `variants`.
+
+## Development
+
+```bash
+pip install -e '.[dev]'
+make lint          # ruff check lantern; reuse lint
+lantern PATH       # look at the plots a change touches
+```
+
+There is no test suite; CI runs ruff, REUSE, builds the wheel and loads the
+repository's catalogue with it. Before a pull request, lint, open results files
+and check the plots the change touches, and say in the description how the
+rendered plots or exported files differ. Changes to the catalogue or the
+labels go in `plots.yaml` in the repository root and `lantern/labels.yaml`
+with their headers and
+`PLOTS.md` updated; user-visible changes get a line in
+[`CHANGELOG.md`](CHANGELOG.md).
+
+A quick check of the loading pipeline without a browser:
+
+```python
+from lantern import results
+from lantern.config import load_config
+
+loaded = results.load("my_deck.parquet", "my_deck", load_config().plots)
+print(loaded.runs, sorted(loaded.plots))
+print(loaded.plots["main_fuel_consumed"].head())
+```
+
+Pull requests target `dev`; `main` holds releases, which the workflows in
+[`.github/workflows`](.github/workflows) publish to PyPI. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the process and
+[`CODESTYLE.md`](CODESTYLE.md) for the style: small, no speculative options,
+one-line docstrings, guard clauses, specific exceptions with the offending
+value.
 
 ## Disclaimer
 
@@ -20,73 +143,6 @@ forecasts, benchmarks, recommendations or commercially optimal outcomes, nor
 as legal, financial or investment advice. Users are responsible for
 selecting appropriate assumptions and for exercising their own independent
 judgement when interpreting any outputs.
-
-## Use
-
-```bash
-pip install .
-navigate my_deck.nav -d ./assumptions     # writes my_deck.parquet
-lantern my_deck.parquet                   # opens the viewer
-lantern study/                            # every .parquet file in study/ and below
-lantern --plots out/ study/               # every plot of every run as SVG and CSV, no viewer
-lantern --data rows.csv study/            # the rows of the files as one CSV, no viewer
-```
-
-`--plots` writes `out/<run>/<plot>.svg` and `.csv`, one per view of a plot
-that has a node select. It renders SVG through kaleido, installed with
-`pip install '.[export]'`, which needs Chrome: `plotly_get_chrome` installs
-one. `--data` writes every series and date of the files, with a `run`
-column, and needs nothing else.
-
-Files can also be added or dropped on the page. Refresh reads `plots.yaml`
-and `labels.yaml` again, so an edit shows without a restart, and reloads the
-paths Lantern was opened with from disk, e.g. after a new run overwrote them;
-it shows the files there now, and files added on the page stay. The loaded
-runs are listed in the sidebar,
-and the plots show the selected one; Ctrl-click (Cmd-click on a Mac) more runs to compare
-them. Lines of several runs share the panels, a colour per run; stacked plots,
-and plots that tell series apart by colour, get a column of panels per run with
-a shared y axis. Click a panel of a multi-panel plot to enlarge it; Escape or
-"All panels" goes back. The plot's modebar has two cameras, one downloading
-the plot as PNG and one as SVG, and a disk that downloads the drawn lines as
-CSV, a row per run, panel, label and date, in the file's unit.
-
-### Compiled files
-
-A study, such as one run by
-[Horizon](https://github.com/zerocarbonshipping/horizon-zcs), compiles its
-scenarios into one results file with a run per scenario, each a single
-summary: every series has one value per date. Lantern opens a compiled file
-like any other, marks it in the sidebar and lists its runs under it, to
-select or compare. Each stacked plot also comes as lines, one panel per
-stacked series, and is listed after it as "(Stacked)".
-
-Two YAML files in the package configure Lantern:
-
-- [`lantern/plots.yaml`](lantern/plots.yaml) says what is plotted: the series
-  of each plot, its panels, units and axes. [`PLOTS.md`](PLOTS.md) is its
-  manual.
-- [`lantern/labels.yaml`](lantern/labels.yaml) names the labels that tell
-  series apart, such as fuels and fleets, gives each a colour name, such as
-  `blue_4`, and sets the stacking order.
-
-The colours come from [`theme.yaml`](theme.yaml), the Center's theme, next to
-the package in this repository. It gives the hex value of each colour name and
-the colours, in turn, of the other labels and of runs compared in one panel;
-`customize_runs` in `plots.yaml` names a run for display and fixes its colour. It is not part
-of the package: Lantern installed from a package takes Plotly's colours.
-
-Lantern stops with the file and line when a value YAML would read as another
-type, such as `no` or `2030`, is not quoted, or a plot has an unknown key.
-
-## Development
-
-```bash
-pip install -e ".[dev]"
-make lint
-```
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`CODESTYLE.md`](CODESTYLE.md).
 
 ## License
 

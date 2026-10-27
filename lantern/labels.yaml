@@ -6,51 +6,51 @@
 # types and the attribute names plots label their series with.
 #
 #   label: Display name
-#   label: {name: Display name, color: blue_4}
+#   label: {name: Display name, color: blue_5}
 #
-# A colour is a name the theme (theme.yaml in the repository) gives a hex value,
-# or a hex value; a label without one, or without a theme, takes the next
-# palette colour, Plotly's without a theme. The order here is the stacking and panel order;
-# labels not listed come after, alphabetically. The groups only organise the file.
+# A colour is a name theme.yaml gives a hex value, or a hex value; a label without
+# one takes the next palette colour. The order here is the stacking and panel
+# order; labels not listed come after, alphabetically. The groups only organise
+# the file. The labels key of plots.yaml overrides an entry by its label.
 
 fuel_types:
-  OIL:         {name: Oil, color: grey_5}
-  LPG:         {name: LPG, color: grey_4}
-  METHANE:     {name: Methane, color: red_4}
-  METHANOL:    {name: Methanol, color: green_4}
-  ETHANOL:     {name: Ethanol, color: red_6}
-  AMMONIA:     {name: Ammonia, color: blue_4}
-  HYDROGEN:    {name: Hydrogen, color: yellow_5}
-  ELECTRICITY: {name: Electricity, color: green_3}
+  OIL:         {name: Oil, color: black_7}
+  LPG:         {name: LPG, color: black_5}
+  METHANE:     {name: Methane, color: peach_5}
+  METHANOL:    {name: Methanol, color: green_5}
+  ETHANOL:     {name: Ethanol, color: peach_8}
+  AMMONIA:     {name: Ammonia, color: blue_5}
+  HYDROGEN:    {name: Hydrogen, color: yellow_7}
+  ELECTRICITY: {name: Electricity, color: green_4}
 
 fuels:
-  fossil_fuel_oil:         {name: Fuel oil, color: grey_5}
-  heavy_fuel_oil:          {name: HFO, color: grey_5}
-  liquefied_petroleum_gas: {name: LPG, color: grey_3}
-  liquefied_natural_gas:   {name: LNG, color: grey_1}
-  ammonia_grey:            {name: Grey ammonia, color: grey_1}
-  fatty_acid_methyl_ester: {name: FAME, color: red_2}
-  oil_bio:                 {name: Bio-oil, color: red_5}
-  methanol_bio:            {name: Bio-methanol, color: red_4}
-  ethanol_bio:             {name: Bio-ethanol, color: red_6}
-  methane_bio:             {name: Bio-methane, color: red_3}
-  ammonia_blue:            {name: Blue ammonia, color: blue_3}
-  ammonia_electro:         {name: e-ammonia, color: green_3}
-  methanol_electro:        {name: e-methanol, color: green_4}
+  fossil_fuel_oil:         {name: Fuel oil, color: black_7}
+  heavy_fuel_oil:          {name: HFO, color: black_7}
+  liquefied_petroleum_gas: {name: LPG, color: black_4}
+  liquefied_natural_gas:   {name: LNG, color: black_1}
+  ammonia_grey:            {name: Grey ammonia, color: black_1}
+  fatty_acid_methyl_ester: {name: FAME, color: peach_2}
+  oil_bio:                 {name: Bio-oil, color: peach_7}
+  methanol_bio:            {name: Bio-methanol, color: peach_5}
+  ethanol_bio:             {name: Bio-ethanol, color: peach_8}
+  methane_bio:             {name: Bio-methane, color: peach_4}
+  ammonia_blue:            {name: Blue ammonia, color: blue_4}
+  ammonia_electro:         {name: e-ammonia, color: green_4}
+  methanol_electro:        {name: e-methanol, color: green_5}
   methane_electro:         {name: e-methane, color: green_2}
-  diesel_electro:          {name: e-diesel, color: green_5}
+  diesel_electro:          {name: e-diesel, color: green_7}
   electricity:             {name: Electricity, color: green_1}
   shore_power:             {name: Shore power, color: yellow_2}
 
 feedstocks:
-  crude_oil:                          {name: Crude oil, color: grey_5}
-  natural_gas:                        {name: Natural gas, color: grey_3}
-  methanol_grey:                      {name: Grey methanol, color: grey_3}
+  crude_oil:                          {name: Crude oil, color: black_7}
+  natural_gas:                        {name: Natural gas, color: black_4}
+  methanol_grey:                      {name: Grey methanol, color: black_4}
   used_cooking_oil:                   {name: UCO, color: yellow_2}
-  feedstock_biogas:                   {name: Biogas feedstock, color: red_3}
-  feedstock_bioethanol_fermentation:  {name: Fermentation feedstock, color: red_4}
-  feedstock_biomethanol_gasification: {name: Gasification feedstock, color: red_5}
-  carbon_dioxide_biogenic:            {name: Biogenic CO₂ (PS), color: green_3}
+  feedstock_biogas:                   {name: Biogas feedstock, color: peach_4}
+  feedstock_bioethanol_fermentation:  {name: Fermentation feedstock, color: peach_5}
+  feedstock_biomethanol_gasification: {name: Gasification feedstock, color: peach_7}
+  carbon_dioxide_biogenic:            {name: Biogenic CO₂ (PS), color: green_4}
   demineralized_water:                {name: Dem. water, color: blue_2}
 
 fleets:
@@ -81,72 +81,72 @@ fleets:
   tug:                   Tug
 
 energy_demand_types:
-  PROPULSION: {name: Propulsion, color: blue_3}
-  ELECTRICAL: {name: Electrical, color: green_3}
-  HEAT:       {name: Heat, color: red_3}
+  PROPULSION: {name: Propulsion, color: blue_4}
+  ELECTRICAL: {name: Electrical, color: green_4}
+  HEAT:       {name: Heat, color: peach_4}
 
 emissions:
-  intensity_total_equivalent_wtw: {name: WTW, color: grey_6}
-  total_equivalent_wtw:           {name: WTW, color: grey_6}
+  intensity_total_equivalent_wtw: {name: WTW, color: black_8}
+  total_equivalent_wtw:           {name: WTW, color: black_8}
 
 energy_savings:
-  energy_intensity_saving:             {name: Total, color: blue_4}
-  operational_energy_intensity_saving: {name: Operational, color: yellow_4}
-  technology_energy_intensity_saving:  {name: Technology, color: green_3}
+  energy_intensity_saving:             {name: Total, color: blue_5}
+  operational_energy_intensity_saving: {name: Operational, color: yellow_5}
+  technology_energy_intensity_saving:  {name: Technology, color: green_4}
 
 expenses_and_capital:
-  vessel_expenses:          {name: Vessel, color: blue_3}
+  vessel_expenses:          {name: Vessel, color: blue_4}
   fuel_conversion_expenses: {name: Fuel conversion, color: blue_2}
-  technology_expenses:      {name: Technology, color: red_3}
-  total_fuel_expenses:      {name: Fuel, color: green_3}
-  levy_expenses:            {name: Levy, color: yellow_3}
-  regulation_expenses:      {name: Regulation, color: red_3}
-  plant_tied_capital:       {name: Plants, color: red_3}
-  vessel_tied_capital:      {name: Vessels, color: blue_3}
+  technology_expenses:      {name: Technology, color: peach_4}
+  total_fuel_expenses:      {name: Fuel, color: green_4}
+  levy_expenses:            {name: Levy, color: yellow_4}
+  regulation_expenses:      {name: Regulation, color: peach_4}
+  plant_tied_capital:       {name: Plants, color: peach_4}
+  vessel_tied_capital:      {name: Vessels, color: blue_4}
 
 fuel_and_feed_supply:
-  bunker_mass:            {name: Bunkered, color: green_3}
-  bunker_supply_mass:     {name: Supply, color: grey_6}
-  bunkering_limit_mass:   {name: Infrastructure, color: grey_3}
-  consumed_energy:        {name: Consumed, color: green_3}
-  feed_constraint:        {name: Constraint, color: grey_6}
-  feed_mass:              {name: Consumed, color: green_3}
-  fuel_type_capacity:     {name: Fleet capacity, color: red_5}
+  bunker_mass:            {name: Bunkered, color: green_4}
+  bunker_supply_mass:     {name: Supply, color: black_8}
+  bunkering_limit_mass:   {name: Infrastructure, color: black_4}
+  consumed_energy:        {name: Consumed, color: green_4}
+  feed_constraint:        {name: Constraint, color: black_8}
+  feed_mass:              {name: Consumed, color: green_4}
+  fuel_type_capacity:     {name: Fleet capacity, color: peach_7}
   pilot_fuel_share:       Actual share
-  production_energy:      {name: Produced, color: grey_6}
-  production_type_energy: {name: Supply, color: blue_5}
+  production_energy:      {name: Produced, color: black_8}
+  production_type_energy: {name: Supply, color: blue_7}
 
 fleet:
-  actual_speed:               {name: Actual, color: red_3}
-  existing_vessels:           {name: Vessels, color: blue_4}
-  highest_speed:              {name: Highest, color: grey_3}
-  instantaneous_freight_rate: {name: Instantaneous, color: blue_6}
-  investment_freight_rate:    {name: Investment, color: blue_4}
-  lowest_speed:               {name: Lowest, color: grey_3}
-  maximum_speed:              {name: Maximum, color: grey_2}
-  minimum_speed:              {name: Minimum, color: grey_2}
-  optimal_speed:              {name: Optimal, color: green_3}
-  reference_speed:            {name: Reference, color: grey_4}
+  actual_speed:               {name: Actual, color: peach_4}
+  existing_vessels:           {name: Vessels, color: blue_5}
+  highest_speed:              {name: Highest, color: black_4}
+  instantaneous_freight_rate: {name: Instantaneous, color: blue_8}
+  investment_freight_rate:    {name: Investment, color: blue_5}
+  lowest_speed:               {name: Lowest, color: black_4}
+  maximum_speed:              {name: Maximum, color: black_2}
+  minimum_speed:              {name: Minimum, color: black_2}
+  optimal_speed:              {name: Optimal, color: green_4}
+  reference_speed:            {name: Reference, color: black_5}
 
 producers_and_plants:
-  development:         {name: Planned, color: green_3}
-  instantaneous_cost:  {name: Instantaneous, color: blue_6}
-  investment_cost:     {name: Investment, color: blue_4}
-  maximum_development: {name: Constraint, color: grey_6}
+  development:         {name: Planned, color: green_4}
+  instantaneous_cost:  {name: Instantaneous, color: blue_8}
+  investment_cost:     {name: Investment, color: blue_5}
+  maximum_development: {name: Constraint, color: black_8}
 
 regulations:
-  adjusted_shared_threshold: {name: Adjusted threshold, color: red_5}
-  adjusted_vessel_threshold: {name: Adjusted threshold, color: red_5}
-  flexibility_cost:          {name: Flexible, color: green_3}
-  non_compliance_units:      {name: Non-compliance, color: grey_6}
-  remedial_cost:             {name: Remedial, color: red_3}
-  shared_allowance:          {name: Threshold, color: grey_6}
-  shared_compliance:         {name: Compliance, color: green_3}
-  shared_threshold:          {name: Threshold, color: grey_6}
-  shared_units:              {name: Compliance, color: green_3}
-  surplus_units:             {name: Surplus, color: green_3}
-  vessel_compliance:         {name: Compliance, color: green_3}
-  vessel_threshold:          {name: Threshold, color: grey_6}
+  adjusted_shared_threshold: {name: Adjusted threshold, color: peach_7}
+  adjusted_vessel_threshold: {name: Adjusted threshold, color: peach_7}
+  flexibility_cost:          {name: Flexible, color: green_4}
+  non_compliance_units:      {name: Non-compliance, color: black_8}
+  remedial_cost:             {name: Remedial, color: peach_4}
+  shared_allowance:          {name: Threshold, color: black_8}
+  shared_compliance:         {name: Compliance, color: green_4}
+  shared_threshold:          {name: Threshold, color: black_8}
+  shared_units:              {name: Compliance, color: green_4}
+  surplus_units:             {name: Surplus, color: green_4}
+  vessel_compliance:         {name: Compliance, color: green_4}
+  vessel_threshold:          {name: Threshold, color: black_8}
 
 vessels:
   bulk_carrier_200k_dwt_ice_ammonia:  Bulk Carrier 200K DWT, ammonia ICE

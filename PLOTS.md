@@ -5,10 +5,15 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # The plot catalogue: `plots.yaml`
 
-[`lantern/plots.yaml`](lantern/plots.yaml) lists every plot Lantern shows: which
-series of the results it draws, how, and in which panels. Display names, colours
-and order of the series are in [`lantern/labels.yaml`](lantern/labels.yaml). Both
-are part of the package, so a change takes effect on the next start.
+[`plots.yaml`](plots.yaml) lists every plot Lantern shows: which series of the
+results it draws, how, and in which panels. Lantern reads it from the folder it
+is started in, else from the home folder, so a study can carry its own
+catalogue; this repository's is in its root. Display names, colours and order
+of the series are in [`lantern/labels.yaml`](lantern/labels.yaml) and the
+colours in [`lantern/theme.yaml`](lantern/theme.yaml), both part of the
+package; `plots.yaml` can override their entries, see
+[Labels and theme](#labels-and-theme). A change takes effect on the next start
+or Refresh.
 
 ## The results
 
@@ -107,7 +112,7 @@ colour and place of the `shore_power` label.
 
 ## Runs
 
-`customize_runs`, the one top-level key of `plots.yaml` that is not a section, gives a
+`customize_runs`, a top-level key of `plots.yaml` that is not a section, gives a
 run a display name and a colour by its name: the run within a compiled file,
 or the file name of a plain one. An entry is the display name, or a mapping
 of `name` and `color`, as in `labels.yaml`; the colour is a colour name of the
@@ -126,6 +131,27 @@ scenario that appears in every study keeps its colour while the others vary.
 A selected run's colour highlights its button in the sidebar. The lines take
 the run colours only when runs are overlaid; a single run, or runs tiled in
 columns, keep the label colours of `labels.yaml`.
+
+## Labels and theme
+
+Two more top-level keys of `plots.yaml` are not sections. `labels` overrides
+entries of the package's `labels.yaml` by label, in the same form, and adds
+labels it does not have, after its own; `theme` overrides entries of the
+package's `theme.yaml`: `swatches` by colour name, and `palette` as a whole.
+Both are empty in this repository's `plots.yaml`:
+
+```yaml
+labels:
+  OIL: {name: Crude oil, color: black_8}
+  my_fleet: My fleet
+theme:
+  swatches: {accent: "#447a7a"}
+  palette: [accent, blue_7, yellow_5]
+```
+
+A colour name is one of the theme's: the Center's palettes `black`, `red`,
+`orange`, `peach`, `yellow`, `green`, `blue` and `purple` in shades `0`
+(lightest) to `8` (darkest), such as `blue_5`, or one `swatches` adds.
 
 ## Variants
 

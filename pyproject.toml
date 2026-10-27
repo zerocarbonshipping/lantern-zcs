@@ -24,11 +24,12 @@ dependencies = [
     "plotly>=6.0",
     "polars>=2.0",
     "pyyaml>=6.0",
+    "tqdm>=4.66",
 ]
 
 [project.optional-dependencies]
 dev = ["ruff", "reuse"]
-# --plots renders SVG through kaleido, which needs Chrome: plotly_get_chrome installs one
+# --plot renders PNG through kaleido, which needs Chrome: plotly_get_chrome installs one
 export = ["kaleido>=1.0"]
 
 [project.urls]
@@ -39,7 +40,7 @@ Repository = "https://github.com/zerocarbonshipping/lantern-zcs"
 include = ["lantern*"]
 
 [tool.setuptools.package-data]
-lantern = ["plots.yaml", "labels.yaml", "static/*"]
+lantern = ["labels.yaml", "theme.yaml", "static/*"]
 
 [project.scripts]
 lantern = "lantern.__main__:main"
