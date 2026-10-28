@@ -1,0 +1,41 @@
+/*
+SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+SPDX-License-Identifier: Apache-2.0
+*/
+
+body { --nav: 260px; --aside: 260px; margin: 0; height: 100vh; display: flex; font: 14px system-ui, sans-serif; color: #1d2327; background: #f6f7f8; }
+body.resizing { cursor: col-resize; user-select: none; }
+.logo { width: 44px; height: 44px; }
+/* the top of each column stays while it scrolls */
+.head { position: sticky; top: 0; z-index: 1; display: flex; gap: 8px; align-items: center; margin: 0 -12px 4px; padding: 10px 12px; background: #fff; border-bottom: 1px solid #dde2e5; }
+.gutter { flex-shrink: 0; width: 5px; cursor: col-resize; background: #dde2e5; }
+.gutter:hover, .gutter.dragging { background: #96c8e4; }
+#offline { margin: 0 0 8px; padding: 6px 10px; border-radius: 6px; background: #f8e3e0; color: #a63d32; font-size: 12px; }
+.button { padding: 5px 10px; border: 1px solid #dde2e5; border-radius: 6px; cursor: pointer; background: #fff; font: inherit; color: inherit; }
+/* the run column's head shares its width between its two buttons */
+aside .head .button { flex: 1; text-align: center; }
+.button:disabled { color: #b3bbc0; cursor: default; }
+nav, aside { flex-shrink: 0; overflow-y: auto; padding: 0 12px 8px; background: #fff; }
+nav { width: var(--nav); }
+aside { width: var(--aside); }
+:is(nav, aside) h4 { margin: 14px 4px 4px; font-size: 11px; text-transform: uppercase; color: #5f6b73; }
+:is(nav, aside) button { display: block; width: 100%; text-align: left; padding: 4px 8px; border: 0; border-radius: 6px; background: none; font: inherit; cursor: pointer; }
+:is(nav, aside) button.active { background: #e3eef3; color: #1f5c7a; font-weight: 600; }
+:is(nav, aside) button:disabled { color: #b3bbc0; cursor: default; }
+main { flex: 1; min-width: 0; overflow: auto; scrollbar-gutter: stable; padding: 16px; display: flex; flex-direction: column; }
+#figure { flex: 1; }
+#toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+#toolbar h2 { margin: 0; font-size: 18px; }
+.empty { margin: 20vh auto; max-width: 420px; padding: 40px; text-align: center; border: 2px dashed #dde2e5; border-radius: 12px; color: #5f6b73; }
+#message { color: #a63d32; }
+#message:empty { display: none; }
+.hint { margin: 0 4px 6px; font-size: 12px; color: #5f6b73; }
+#runs { list-style: none; margin: 0; padding: 0; }
+#runs div { display: flex; align-items: center; gap: 4px; }
+#runs span, #runs .run { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#runs span { flex: 1; font-weight: 600; }
+#runs .remove { width: auto; padding: 4px 6px; color: #5f6b73; }
+#runs .run.active.colored { background: var(--color); color: var(--text); }
+#runs .compiled { margin: 6px 0; padding-left: 6px; border-left: 3px solid #1f5c7a; }
+#runs .compiled .run { margin-top: 3px; }
+#runs small { padding: 0 5px; border-radius: 4px; background: #e3eef3; color: #1f5c7a; font-size: 11px; }

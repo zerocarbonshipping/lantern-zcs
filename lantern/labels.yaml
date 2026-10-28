@@ -1,0 +1,365 @@
+# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+# SPDX-License-Identifier: Apache-2.0
+
+# Display names and colours of the labels that tell series apart: fuel types,
+# fuels, feedstocks, fleets, vessels, processes, producers, plants, energy demand
+# types and the attribute names plots label their series with.
+#
+#   label: Display name
+#   label: {name: Display name, color: blue_5}
+#
+# A colour is a name theme.yaml gives a hex value, or a hex value; a label without
+# one takes the next palette colour. The order here is the stacking and panel
+# order; labels not listed come after, alphabetically. The groups only organise
+# the file. The labels key of plots.yaml overrides an entry by its label.
+
+fuel_types:
+  OIL:         {name: Oil, color: black_7}
+  LPG:         {name: LPG, color: black_5}
+  METHANE:     {name: Methane, color: peach_5}
+  METHANOL:    {name: Methanol, color: green_5}
+  ETHANOL:     {name: Ethanol, color: peach_8}
+  AMMONIA:     {name: Ammonia, color: blue_5}
+  HYDROGEN:    {name: Hydrogen, color: yellow_7}
+  ELECTRICITY: {name: Electricity, color: green_4}
+
+fuels:
+  fossil_fuel_oil:         {name: Fuel oil, color: black_7}
+  heavy_fuel_oil:          {name: HFO, color: black_7}
+  liquefied_petroleum_gas: {name: LPG, color: black_4}
+  liquefied_natural_gas:   {name: LNG, color: black_1}
+  ammonia_grey:            {name: Grey ammonia, color: black_1}
+  fatty_acid_methyl_ester: {name: FAME, color: peach_2}
+  oil_bio:                 {name: Bio-oil, color: peach_7}
+  methanol_bio:            {name: Bio-methanol, color: peach_5}
+  ethanol_bio:             {name: Bio-ethanol, color: peach_8}
+  methane_bio:             {name: Bio-methane, color: peach_4}
+  ammonia_blue:            {name: Blue ammonia, color: blue_4}
+  ammonia_electro:         {name: e-ammonia, color: green_4}
+  methanol_electro:        {name: e-methanol, color: green_5}
+  methane_electro:         {name: e-methane, color: green_2}
+  diesel_electro:          {name: e-diesel, color: green_7}
+  electricity:             {name: Electricity, color: green_1}
+  shore_power:             {name: Shore power, color: yellow_2}
+
+feedstocks:
+  crude_oil:                          {name: Crude oil, color: black_7}
+  natural_gas:                        {name: Natural gas, color: black_4}
+  methanol_grey:                      {name: Grey methanol, color: black_4}
+  used_cooking_oil:                   {name: UCO, color: yellow_2}
+  feedstock_biogas:                   {name: Biogas feedstock, color: peach_4}
+  feedstock_bioethanol_fermentation:  {name: Fermentation feedstock, color: peach_5}
+  feedstock_biomethanol_gasification: {name: Gasification feedstock, color: peach_7}
+  carbon_dioxide_biogenic:            {name: Biogenic CO₂ (PS), color: green_4}
+  demineralized_water:                {name: Dem. water, color: blue_2}
+
+fleets:
+  bulk_carrier_200k_dwt: Bulk Carrier 200K DWT
+  bulk_carrier_26k_dwt:  Bulk Carrier 26K DWT
+  bulk_carrier_52k_dwt:  Bulk Carrier 52K DWT
+  bulk_carrier_80k_dwt:  Bulk Carrier 80K DWT
+  container_15000_teu:   Container 15000 TEU
+  container_1500_teu:    Container 1500 TEU
+  container_20000_teu:   Container 20000 TEU
+  container_3500_teu:    Container 3500 TEU
+  container_4500_teu:    Container 4500 TEU
+  container_8000_teu:    Container 8000 TEU
+  cruise_100k_gt:        Cruise 100K GT
+  cruise_175k_gt:        Cruise 175K GT
+  cruise_25k_gt:         Cruise 25K GT
+  ferry:                 Ferry
+  gas_carrier_100k_cbm:  Gas Carrier 100K CBM
+  general_cargo:         General Cargo 10K DWT
+  offshore:              Offshore
+  other:                 Other
+  roro_4000_ceu:         Roll-on/Roll-off 4000 CEU
+  roro_7000_ceu:         Roll-on/Roll-off 7000 CEU
+  tanker_127k_dwt:       Tanker 127K DWT
+  tanker_300k_dwt:       Tanker 300K DWT
+  tanker_47k_dwt:        Tanker 47K DWT
+  tanker_7500_dwt:       Tanker 7.5K DWT
+  tug:                   Tug
+
+energy_demand_types:
+  PROPULSION: {name: Propulsion, color: blue_4}
+  ELECTRICAL: {name: Electrical, color: green_4}
+  HEAT:       {name: Heat, color: peach_4}
+
+emissions:
+  intensity_total_equivalent_wtw: {name: WTW, color: black_8}
+  total_equivalent_wtw:           {name: WTW, color: black_8}
+
+energy_savings:
+  energy_intensity_saving:             {name: Total, color: blue_5}
+  operational_energy_intensity_saving: {name: Operational, color: yellow_5}
+  technology_energy_intensity_saving:  {name: Technology, color: green_4}
+
+expenses_and_capital:
+  vessel_expenses:          {name: Vessel, color: blue_4}
+  fuel_conversion_expenses: {name: Fuel conversion, color: blue_2}
+  technology_expenses:      {name: Technology, color: peach_4}
+  total_fuel_expenses:      {name: Fuel, color: green_4}
+  levy_expenses:            {name: Levy, color: yellow_4}
+  regulation_expenses:      {name: Regulation, color: peach_4}
+  plant_tied_capital:       {name: Plants, color: peach_4}
+  vessel_tied_capital:      {name: Vessels, color: blue_4}
+
+fuel_and_feed_supply:
+  bunker_mass:            {name: Bunkered, color: green_4}
+  bunker_supply_mass:     {name: Supply, color: black_8}
+  bunkering_limit_mass:   {name: Infrastructure, color: black_4}
+  consumed_energy:        {name: Consumed, color: green_4}
+  feed_constraint:        {name: Constraint, color: black_8}
+  feed_mass:              {name: Consumed, color: green_4}
+  fuel_type_capacity:     {name: Fleet capacity, color: peach_7}
+  pilot_fuel_share:       Actual share
+  production_energy:      {name: Produced, color: black_8}
+  production_type_energy: {name: Supply, color: blue_7}
+
+fleet:
+  actual_speed:               {name: Actual, color: peach_4}
+  existing_vessels:           {name: Vessels, color: blue_5}
+  highest_speed:              {name: Highest, color: black_4}
+  instantaneous_freight_rate: {name: Instantaneous, color: blue_8}
+  investment_freight_rate:    {name: Investment, color: blue_5}
+  lowest_speed:               {name: Lowest, color: black_4}
+  maximum_speed:              {name: Maximum, color: black_2}
+  minimum_speed:              {name: Minimum, color: black_2}
+  optimal_speed:              {name: Optimal, color: green_4}
+  reference_speed:            {name: Reference, color: black_5}
+
+producers_and_plants:
+  development:         {name: Planned, color: green_4}
+  instantaneous_cost:  {name: Instantaneous, color: blue_8}
+  investment_cost:     {name: Investment, color: blue_5}
+  maximum_development: {name: Constraint, color: black_8}
+
+regulations:
+  adjusted_shared_threshold: {name: Adjusted threshold, color: peach_7}
+  adjusted_vessel_threshold: {name: Adjusted threshold, color: peach_7}
+  flexibility_cost:          {name: Flexible, color: green_4}
+  non_compliance_units:      {name: Non-compliance, color: black_8}
+  remedial_cost:             {name: Remedial, color: peach_4}
+  shared_allowance:          {name: Threshold, color: black_8}
+  shared_compliance:         {name: Compliance, color: green_4}
+  shared_threshold:          {name: Threshold, color: black_8}
+  shared_units:              {name: Compliance, color: green_4}
+  surplus_units:             {name: Surplus, color: green_4}
+  vessel_compliance:         {name: Compliance, color: green_4}
+  vessel_threshold:          {name: Threshold, color: black_8}
+
+vessels:
+  bulk_carrier_200k_dwt_ice_ammonia:  Bulk Carrier 200K DWT, ammonia ICE
+  bulk_carrier_200k_dwt_ice_methane:  Bulk Carrier 200K DWT, methane ICE
+  bulk_carrier_200k_dwt_ice_methanol: Bulk Carrier 200K DWT, methanol ICE
+  bulk_carrier_200k_dwt_ice_oil:      Bulk Carrier 200K DWT, oil ICE
+  bulk_carrier_26k_dwt_ice_ammonia:   Bulk Carrier 26K DWT, ammonia ICE
+  bulk_carrier_26k_dwt_ice_methane:   Bulk Carrier 26K DWT, methane ICE
+  bulk_carrier_26k_dwt_ice_methanol:  Bulk Carrier 26K DWT, methanol ICE
+  bulk_carrier_26k_dwt_ice_oil:       Bulk Carrier 26K DWT, oil ICE
+  bulk_carrier_52k_dwt_ice_ammonia:   Bulk Carrier 52K DWT, ammonia ICE
+  bulk_carrier_52k_dwt_ice_methane:   Bulk Carrier 52K DWT, methane ICE
+  bulk_carrier_52k_dwt_ice_methanol:  Bulk Carrier 52K DWT, methanol ICE
+  bulk_carrier_52k_dwt_ice_oil:       Bulk Carrier 52K DWT, oil ICE
+  bulk_carrier_80k_dwt_ice_ammonia:   Bulk Carrier 80K DWT, ammonia ICE
+  bulk_carrier_80k_dwt_ice_methane:   Bulk Carrier 80K DWT, methane ICE
+  bulk_carrier_80k_dwt_ice_methanol:  Bulk Carrier 80K DWT, methanol ICE
+  bulk_carrier_80k_dwt_ice_oil:       Bulk Carrier 80K DWT, oil ICE
+  container_15000_teu_ice_ammonia:    Container 15000 TEU, ammonia ICE
+  container_15000_teu_ice_methane:    Container 15000 TEU, methane ICE
+  container_15000_teu_ice_methanol:   Container 15000 TEU, methanol ICE
+  container_15000_teu_ice_oil:        Container 15000 TEU, oil ICE
+  container_1500_teu_ice_ammonia:     Container 1500 TEU, ammonia ICE
+  container_1500_teu_ice_methane:     Container 1500 TEU, methane ICE
+  container_1500_teu_ice_methanol:    Container 1500 TEU, methanol ICE
+  container_1500_teu_ice_oil:         Container 1500 TEU, oil ICE
+  container_4500_teu_ice_ammonia:     Container 4500 TEU, ammonia ICE
+  container_4500_teu_ice_methane:     Container 4500 TEU, methane ICE
+  container_4500_teu_ice_methanol:    Container 4500 TEU, methanol ICE
+  container_4500_teu_ice_oil:         Container 4500 TEU, oil ICE
+  container_8000_teu_ice_ammonia:     Container 8000 TEU, ammonia ICE
+  container_8000_teu_ice_methane:     Container 8000 TEU, methane ICE
+  container_8000_teu_ice_methanol:    Container 8000 TEU, methanol ICE
+  container_8000_teu_ice_oil:         Container 8000 TEU, oil ICE
+  cruise_100k_gt_ice_methane:         Cruise 100K GT, methane ICE
+  cruise_100k_gt_ice_methanol:        Cruise 100K GT, methanol ICE
+  cruise_100k_gt_ice_oil:             Cruise 100K GT, oil ICE
+  cruise_175k_gt_ice_methane:         Cruise 175K GT, methane ICE
+  cruise_175k_gt_ice_methanol:        Cruise 175K GT, methanol ICE
+  cruise_175k_gt_ice_oil:             Cruise 175K GT, oil ICE
+  cruise_25k_gt_ice_methane:          Cruise 25K GT, methane ICE
+  cruise_25k_gt_ice_methanol:         Cruise 25K GT, methanol ICE
+  cruise_25k_gt_ice_oil:              Cruise 25K GT, oil ICE
+  ferry_ice_methane:                  Ferry, methane ICE
+  ferry_ice_methanol:                 Ferry, methanol ICE
+  ferry_ice_oil:                      Ferry, oil ICE
+  gas_carrier_100k_cbm_ice_ammonia:   Gas Carrier 100K CBM, ammonia ICE
+  gas_carrier_100k_cbm_ice_methane:   Gas Carrier 100K CBM, methane ICE
+  gas_carrier_100k_cbm_ice_methanol:  Gas Carrier 100K CBM, methanol ICE
+  gas_carrier_100k_cbm_ice_oil:       Gas Carrier 100K CBM, oil ICE
+  general_cargo_ice_ammonia:          General Cargo 10K DWT, ammonia ICE
+  general_cargo_ice_methane:          General Cargo 10K DWT, methane ICE
+  general_cargo_ice_methanol:         General Cargo 10K DWT, methanol ICE
+  general_cargo_ice_oil:              General Cargo 10K DWT, oil ICE
+  offshore_ice_ammonia:               Offshore, ammonia ICE
+  offshore_ice_methane:               Offshore, methane ICE
+  offshore_ice_methanol:              Offshore, methanol ICE
+  offshore_ice_oil:                   Offshore, oil ICE
+  other_ice_ammonia:                  Other, ammonia ICE
+  other_ice_methane:                  Other, methane ICE
+  other_ice_methanol:                 Other, methanol ICE
+  other_ice_oil:                      Other, oil ICE
+  roro_4000_ceu_ice_ammonia:          Roll-on/Roll-off 4000 CEU, ammonia ICE
+  roro_4000_ceu_ice_methane:          Roll-on/Roll-off 4000 CEU, methane ICE
+  roro_4000_ceu_ice_methanol:         Roll-on/Roll-off 4000 CEU, methanol ICE
+  roro_4000_ceu_ice_oil:              Roll-on/Roll-off 4000 CEU, oil ICE
+  roro_7000_ceu_ice_ammonia:          Roll-on/Roll-off 7000 CEU, ammonia ICE
+  roro_7000_ceu_ice_methane:          Roll-on/Roll-off 7000 CEU, methane ICE
+  roro_7000_ceu_ice_methanol:         Roll-on/Roll-off 7000 CEU, methanol ICE
+  roro_7000_ceu_ice_oil:              Roll-on/Roll-off 7000 CEU, oil ICE
+  tanker_127k_dwt_ice_ammonia:        Tanker 127K DWT, ammonia ICE
+  tanker_127k_dwt_ice_methane:        Tanker 127K DWT, methane ICE
+  tanker_127k_dwt_ice_methanol:       Tanker 127K DWT, methanol ICE
+  tanker_127k_dwt_ice_oil:            Tanker 127K DWT, oil ICE
+  tanker_300k_dwt_ice_ammonia:        Tanker 300K DWT, ammonia ICE
+  tanker_300k_dwt_ice_methane:        Tanker 300K DWT, methane ICE
+  tanker_300k_dwt_ice_methanol:       Tanker 300K DWT, methanol ICE
+  tanker_300k_dwt_ice_oil:            Tanker 300K DWT, oil ICE
+  tanker_47k_dwt_ice_ammonia:         Tanker 47K DWT, ammonia ICE
+  tanker_47k_dwt_ice_methane:         Tanker 47K DWT, methane ICE
+  tanker_47k_dwt_ice_methanol:        Tanker 47K DWT, methanol ICE
+  tanker_47k_dwt_ice_oil:             Tanker 47K DWT, oil ICE
+  tanker_7500_dwt_ice_ammonia:        Tanker 7.5K DWT, ammonia ICE
+  tanker_7500_dwt_ice_methane:        Tanker 7.5K DWT, methane ICE
+  tanker_7500_dwt_ice_methanol:       Tanker 7.5K DWT, methanol ICE
+  tanker_7500_dwt_ice_oil:            Tanker 7.5K DWT, oil ICE
+  tug_ice_ammonia:                    Tug, ammonia ICE
+  tug_ice_methane:                    Tug, methane ICE
+  tug_ice_methanol:                   Tug, methanol ICE
+  tug_ice_oil:                        Tug, oil ICE
+
+processes:
+  ammonia_synthesis_blue:                   Blue ammonia synthesis
+  ammonia_synthesis_electro_alkaline:       e-ammonia synthesis (alkaline)
+  ammonia_synthesis_electro_pem:            e-ammonia synthesis (PEM)
+  ammonia_synthesis_electro_soec:           e-ammonia synthesis (SOEC)
+  autothermal_reforming:                    Autothermal reforming
+  biogas_production:                        Biogas production
+  diesel_synthesis_electro_alkaline:        e-diesel synthesis (alkaline)
+  diesel_synthesis_electro_pem:             e-diesel synthesis (PEM)
+  diesel_synthesis_electro_soec:            e-diesel synthesis (SOEC)
+  electrolysis_stack_alkaline:              Electrolysis stack (alkaline)
+  electrolysis_stack_pem:                   Electrolysis stack (PEM)
+  electrolysis_stack_soec:                  Electrolysis stack (SOEC)
+  ethanol_synthesis_bio:                    Bio-ethanol synthesis
+  fatty_acid_methyl_ester_synthesis:        FAME synthesis
+  hydrogen_electro_alkaline:                e-hydrogen (alkaline)
+  hydrogen_electro_pem:                     e-hydrogen (PEM)
+  hydrogen_electro_soec:                    e-hydrogen (SOEC)
+  hydrogen_electro_soec_compression_10_bar: e-hydrogen (SOEC), 10 bar compression
+  hydrogen_electro_soec_compression_25_bar: e-hydrogen (SOEC), 25 bar compression
+  hydrogen_electro_soec_compression_30_bar: e-hydrogen (SOEC), 30 bar compression
+  methane_liquefaction_electro_alkaline:    e-methane liquefaction (alkaline)
+  methane_liquefaction_electro_pem:         e-methane liquefaction (PEM)
+  methane_liquefaction_electro_soec:        e-methane liquefaction (SOEC)
+  methane_synthesis_electro_alkaline:       e-methane synthesis (alkaline)
+  methane_synthesis_electro_pem:            e-methane synthesis (PEM)
+  methane_synthesis_electro_soec:           e-methane synthesis (SOEC)
+  methane_upgrading_and_liquefaction_bio:   Bio-methane upgrading and liquefaction
+  methanol_synthesis_bio_gasification:      Bio-methanol synthesis (gasification)
+  methanol_synthesis_bio_smr:               Bio-methanol synthesis (SMR)
+  methanol_synthesis_electro_alkaline:      e-methanol synthesis (alkaline)
+  methanol_synthesis_electro_pem:           e-methanol synthesis (PEM)
+  methanol_synthesis_electro_soec:          e-methanol synthesis (SOEC)
+  nitrogen_air_separation:                  Nitrogen air separation
+
+producers:
+  epc_bio:         Bio EPC
+  epc_fame_europe: FAME EPC (Europe)
+  epc_global:      Global EPC
+
+plants:
+  plant_ammonia_blue_africa:                   Blue ammonia, Africa
+  plant_ammonia_blue_americas:                 Blue ammonia, Americas
+  plant_ammonia_blue_asia:                     Blue ammonia, Asia
+  plant_ammonia_blue_europe:                   Blue ammonia, Europe
+  plant_ammonia_blue_middle_east:              Blue ammonia, Middle East
+  plant_ammonia_electro_alkaline_africa:       e-ammonia (alkaline), Africa
+  plant_ammonia_electro_alkaline_americas:     e-ammonia (alkaline), Americas
+  plant_ammonia_electro_alkaline_asia:         e-ammonia (alkaline), Asia
+  plant_ammonia_electro_alkaline_europe:       e-ammonia (alkaline), Europe
+  plant_ammonia_electro_alkaline_middle_east:  e-ammonia (alkaline), Middle East
+  plant_ammonia_electro_pem_africa:            e-ammonia (PEM), Africa
+  plant_ammonia_electro_pem_americas:          e-ammonia (PEM), Americas
+  plant_ammonia_electro_pem_asia:              e-ammonia (PEM), Asia
+  plant_ammonia_electro_pem_europe:            e-ammonia (PEM), Europe
+  plant_ammonia_electro_pem_middle_east:       e-ammonia (PEM), Middle East
+  plant_ammonia_electro_soec_africa:           e-ammonia (SOEC), Africa
+  plant_ammonia_electro_soec_americas:         e-ammonia (SOEC), Americas
+  plant_ammonia_electro_soec_asia:             e-ammonia (SOEC), Asia
+  plant_ammonia_electro_soec_europe:           e-ammonia (SOEC), Europe
+  plant_ammonia_electro_soec_middle_east:      e-ammonia (SOEC), Middle East
+  plant_diesel_electro_alkaline_africa:        e-diesel (alkaline), Africa
+  plant_diesel_electro_alkaline_americas:      e-diesel (alkaline), Americas
+  plant_diesel_electro_alkaline_asia:          e-diesel (alkaline), Asia
+  plant_diesel_electro_alkaline_europe:        e-diesel (alkaline), Europe
+  plant_diesel_electro_alkaline_middle_east:   e-diesel (alkaline), Middle East
+  plant_diesel_electro_pem_africa:             e-diesel (PEM), Africa
+  plant_diesel_electro_pem_americas:           e-diesel (PEM), Americas
+  plant_diesel_electro_pem_asia:               e-diesel (PEM), Asia
+  plant_diesel_electro_pem_europe:             e-diesel (PEM), Europe
+  plant_diesel_electro_pem_middle_east:        e-diesel (PEM), Middle East
+  plant_diesel_electro_soec_africa:            e-diesel (SOEC), Africa
+  plant_diesel_electro_soec_americas:          e-diesel (SOEC), Americas
+  plant_diesel_electro_soec_asia:              e-diesel (SOEC), Asia
+  plant_diesel_electro_soec_europe:            e-diesel (SOEC), Europe
+  plant_diesel_electro_soec_middle_east:       e-diesel (SOEC), Middle East
+  plant_ethanol_bio_africa:                    Bio-ethanol, Africa
+  plant_ethanol_bio_americas:                  Bio-ethanol, Americas
+  plant_ethanol_bio_asia:                      Bio-ethanol, Asia
+  plant_ethanol_bio_europe:                    Bio-ethanol, Europe
+  plant_fatty_acid_methyl_ester_europe:        FAME, Europe
+  plant_methane_bio_africa:                    Bio-methane, Africa
+  plant_methane_bio_americas:                  Bio-methane, Americas
+  plant_methane_bio_asia:                      Bio-methane, Asia
+  plant_methane_bio_europe:                    Bio-methane, Europe
+  plant_methane_bio_middle_east:               Bio-methane, Middle East
+  plant_methane_electro_alkaline_africa:       e-methane (alkaline), Africa
+  plant_methane_electro_alkaline_americas:     e-methane (alkaline), Americas
+  plant_methane_electro_alkaline_asia:         e-methane (alkaline), Asia
+  plant_methane_electro_alkaline_europe:       e-methane (alkaline), Europe
+  plant_methane_electro_alkaline_middle_east:  e-methane (alkaline), Middle East
+  plant_methane_electro_pem_africa:            e-methane (PEM), Africa
+  plant_methane_electro_pem_americas:          e-methane (PEM), Americas
+  plant_methane_electro_pem_asia:              e-methane (PEM), Asia
+  plant_methane_electro_pem_europe:            e-methane (PEM), Europe
+  plant_methane_electro_pem_middle_east:       e-methane (PEM), Middle East
+  plant_methane_electro_soec_africa:           e-methane (SOEC), Africa
+  plant_methane_electro_soec_americas:         e-methane (SOEC), Americas
+  plant_methane_electro_soec_asia:             e-methane (SOEC), Asia
+  plant_methane_electro_soec_europe:           e-methane (SOEC), Europe
+  plant_methane_electro_soec_middle_east:      e-methane (SOEC), Middle East
+  plant_methanol_bio_gasification_africa:      Bio-methanol (gasification), Africa
+  plant_methanol_bio_gasification_americas:    Bio-methanol (gasification), Americas
+  plant_methanol_bio_gasification_asia:        Bio-methanol (gasification), Asia
+  plant_methanol_bio_gasification_europe:      Bio-methanol (gasification), Europe
+  plant_methanol_bio_smr_africa:               Bio-methanol (SMR), Africa
+  plant_methanol_bio_smr_americas:             Bio-methanol (SMR), Americas
+  plant_methanol_bio_smr_asia:                 Bio-methanol (SMR), Asia
+  plant_methanol_bio_smr_europe:               Bio-methanol (SMR), Europe
+  plant_methanol_bio_smr_middle_east:          Bio-methanol (SMR), Middle East
+  plant_methanol_electro_alkaline_africa:      e-methanol (alkaline), Africa
+  plant_methanol_electro_alkaline_americas:    e-methanol (alkaline), Americas
+  plant_methanol_electro_alkaline_asia:        e-methanol (alkaline), Asia
+  plant_methanol_electro_alkaline_europe:      e-methanol (alkaline), Europe
+  plant_methanol_electro_alkaline_middle_east: e-methanol (alkaline), Middle East
+  plant_methanol_electro_pem_africa:           e-methanol (PEM), Africa
+  plant_methanol_electro_pem_americas:         e-methanol (PEM), Americas
+  plant_methanol_electro_pem_asia:             e-methanol (PEM), Asia
+  plant_methanol_electro_pem_europe:           e-methanol (PEM), Europe
+  plant_methanol_electro_pem_middle_east:      e-methanol (PEM), Middle East
+  plant_methanol_electro_soec_africa:          e-methanol (SOEC), Africa
+  plant_methanol_electro_soec_americas:        e-methanol (SOEC), Americas
+  plant_methanol_electro_soec_asia:            e-methanol (SOEC), Asia
+  plant_methanol_electro_soec_europe:          e-methanol (SOEC), Europe
+  plant_methanol_electro_soec_middle_east:     e-methanol (SOEC), Middle East

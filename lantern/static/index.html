@@ -1,0 +1,37 @@
+<!doctype html>
+<!--
+SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
+SPDX-License-Identifier: Apache-2.0
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lantern</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/plotly.js" defer></script>
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <nav>
+    <div class="head"><img class="logo" src="/logo.svg" alt=""><b>Lantern</b></div>
+    <div id="plots"></div>
+  </nav>
+  <div class="gutter" data-column="nav" title="Drag to resize"></div>
+  <main>
+    <p id="offline" hidden>Lantern is not running; start it again and this page picks it up</p>
+    <p id="empty" class="empty">Drop Navigate results files here, or add them on the right.</p>
+    <div id="toolbar" hidden><h2 id="title"></h2><select id="node" hidden></select><select id="panel" hidden></select></div>
+    <div id="figure"></div>
+    <p id="message"></p>
+  </main>
+  <div class="gutter" data-column="aside" title="Drag to resize"></div>
+  <aside>
+    <div class="head">
+      <label class="button">Add files<input id="files" type="file" accept=".parquet" multiple hidden></label>
+      <button id="refresh" class="button" title="Reload plots.yaml and the results files Lantern was opened with from disk">Refresh</button>
+    </div>
+    <h4>Runs</h4><p class="hint">Ctrl-click runs to compare them</p><ul id="runs"></ul>
+  </aside>
+</body>
+</html>

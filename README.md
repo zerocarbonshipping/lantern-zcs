@@ -5,21 +5,137 @@ SPDX-License-Identifier: CC-BY-4.0
 
 # Lantern
 
-[![CI](https://github.com/zerocarbonshipping/lantern-zcs/actions/workflows/ci.yml/badge.svg)](https://github.com/zerocarbonshipping/lantern-zcs/actions/workflows/ci.yml)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSES/Apache-2.0.txt)
-
-Lantern visualizes scenario ensembles from
+Lantern is a local web app that plots the results of
 [Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
-open-source maritime transition model. Given a combined report CSV — for
-example the output of an uncertainty study run with
-[Horizon](https://github.com/zerocarbonshipping/horizon-zcs) — it generates
-quantile plots (p5 / median / p95 bands), selects a representative pathway
-per scenario using a weighted percentile-space score, and exports tidy CSVs
-of percentiles and representatives.
+open-source maritime transition model. Every Navigate run writes a Parquet
+results file; Lantern opens one or many of them, prepares the plots that
+[`plots.yaml`](plots.yaml) declares and serves them as interactive
+Plotly figures to the browser. It can also write the same plots as PNG and the
+raw rows as CSV without a browser.
 
-Lantern is a companion to Navigate: it post-processes Navigate ensemble
-outputs and expects their report layout. It runs on any CSV with the same
-structure, but it does not produce simulation data itself.
+It is a small Python package, about 1 200 lines, with a static page of plain
+JavaScript and no build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
+
+## Install
+
+```bash
+pip install lantern-zcs             # the package
+pip install 'lantern-zcs[export]'   # plus kaleido, for PNG export
+pip install -e '.[dev]'             # a checkout, with ruff and reuse
+```
+
+PNG export renders through [kaleido](https://github.com/plotly/Kaleido), which
+drives a Chrome instance. The `plotly_get_chrome` command installs one. Depending on the development evironment (WSL) other dependencies might exist.
+
+## Use
+
+```bash
+navigate my_deck.nav -d ./assumptions   # writes my_deck.parquet
+lantern my_deck.parquet                 # opens the viewer on that run
+lantern study/ other.parquet            # every .parquet below study/, and the file
+lantern --list e2e.parquet              # the runs, and the ids of the plots with data
+lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.png
+lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' e2e.parquet   # the two runs in one figure
+lantern --plot 'fleet_speed[][Ferry]' e2e.parquet   # one panel, of each run
+lantern --data study/                   # every row of the files as data.csv
+```
+
+| Argument | Meaning |
+|---|---|
+| `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
+| `--plot ID[RUN,...][PANEL]` | no viewer: write one plot as PNG, 1920 by 1080 pixels, as the viewer first opens it: a plot with a view select in its first view. `ID` alone writes it for each run, as `plots/<run>/<id>.png` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.png`. A second bracket names one panel, by the key `--list` prints or its display name, to draw alone, as the viewer enlarges it, with `_<panel>` added to the file name; `ID[][PANEL]` is that panel of each run. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
+| `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
+| `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder. Needs no kaleido. |
+| `-h`, `--help` | the arguments |
+
+The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
+file that is not a results file, a bad YAML value, a PNG that cannot be
+rendered, print `Error: ...` and exit with 1. The viewer listens on
+`127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
+
+### The page
+
+- **Runs** are listed in the right column, a plain file as one run and a
+  compiled file with its runs under it. Click selects a run; Ctrl-click
+  (Cmd-click on a Mac) adds or removes one, to compare. A selected run's
+  button takes its colour. A Horizon study's file lists a run per scenario,
+  the representative sample, and draws the 5th to 95th percentile over the
+  samples as a band behind each line and the median dashed; a stack shows
+  the representative alone, as percentiles do not add up.
+- **Plots** are listed by section on the left; a plot none of the selected
+  runs has data for is greyed out.
+- **Views and panels**: a plot with `select_view` shows one node, fuel or
+  attribute at a time, chosen in the toolbar. Clicking a panel of a
+  multi-panel plot enlarges it; the panel select or Escape goes back.
+- **Comparing**: lines of several runs share the panels, a colour per run.
+  Stacks, and plots whose series are told apart by colour, get a column of
+  panels per run with a shared y axis.
+- **Downloads**: the modebar has a camera for PNG, one for SVG and a disk for
+  the drawn lines as CSV, a row per run, panel, label and date.
+- **Files**: Add files, or drop them on the page, uploads them to the server;
+  × unloads one. Refresh reads `plots.yaml` again and reloads the paths
+  Lantern was started with from disk, so an edited catalogue or an overwritten
+  run shows without a restart. Files added on the page stay.
+- The column widths are draggable and kept in the browser. An offline badge
+  shows when the server is gone; a restarted server is picked up.
+
+## Configuration
+
+Three YAML files. The catalogue is the user's and travels with a study; the
+other two are part of the package.
+
+| File | Where | What it holds | Manual |
+|---|---|---|---|
+| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`plots.yaml`](plots.yaml) in its root | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`PLOTS.md`](PLOTS.md) |
+| [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
+| [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
+
+Without a `plots.yaml` in either place Lantern stops and says so.
+
+The split is deliberate: `plots.yaml` says *what* is plotted and nothing
+about looks, apart from the overrides; `labels.yaml` says what the series are
+called and in which order and colour name they come; `theme.yaml` says what a
+colour name is.
+
+`config.load_config` validates all three at start and on Refresh. It stops
+with the file and line when an unquoted value reads as another type, such as
+`no`, `on` or `2030`, and with the plot's id on an unknown key, `total`
+together with `split_by`, a bad `y_axis` or malformed `variants`.
+
+## Development
+
+```bash
+pip install -e '.[dev]'
+make lint          # ruff check lantern; reuse lint
+lantern PATH       # look at the plots a change touches
+```
+
+There is no test suite; CI runs ruff, REUSE, builds the wheel and loads the
+repository's catalogue with it. Before a pull request, lint, open results files
+and check the plots the change touches, and say in the description how the
+rendered plots or exported files differ. Changes to the catalogue or the
+labels go in `plots.yaml` in the repository root and `lantern/labels.yaml`
+with their headers and
+`PLOTS.md` updated; user-visible changes get a line in
+[`CHANGELOG.md`](CHANGELOG.md).
+
+A quick check of the loading pipeline without a browser:
+
+```python
+from lantern import results
+from lantern.config import load_config
+
+loaded = results.load("my_deck.parquet", "my_deck", load_config().plots)
+print(loaded.runs, sorted(loaded.plots))
+print(loaded.plots["main_fuel_consumed"].head())
+```
+
+Pull requests target `dev`; `main` holds releases, which the workflows in
+[`.github/workflows`](.github/workflows) publish to PyPI. See
+[`CONTRIBUTING.md`](CONTRIBUTING.md) for the process and
+[`CODESTYLE.md`](CODESTYLE.md) for the style: small, no speculative options,
+one-line docstrings, guard clauses, specific exceptions with the offending
+value.
 
 ## Disclaimer
 
@@ -32,134 +148,12 @@ as legal, financial or investment advice. Users are responsible for
 selecting appropriate assumptions and for exercising their own independent
 judgement when interpreting any outputs.
 
-## Requirements
-
-- Python >= 3.12
-- A combined Navigate report CSV (one column per sample; see
-  [CSV expectations](#csv-expectations))
-
-## Installation
-
-```bash
-pip install .
-```
-
-For development with lint and test tools:
-
-```bash
-pip install -e ".[dev]"
-```
-
-On Windows, if PowerShell blocks entrypoint shims, use
-`python -m lantern.cli` instead of `lantern`.
-
-## Quick start
-
-The bundled example runs on a small synthetic report:
-
-```bash
-cd examples
-lantern report.csv --config lantern.toml --outdir output
-```
-
-This writes interactive HTML plots plus `percentiles.csv` and
-`representatives.csv` to `output/`. See
-[`examples/README.md`](examples/README.md) for a walkthrough.
-
-For your own data:
-
-```bash
-# Inspect what the CSV contains
-lantern report.csv --list-scenarios
-
-# Generate a starter config from the CSV structure
-lantern report.csv --init
-
-# Check the config against the CSV
-lantern report.csv --validate
-
-# Render
-lantern report.csv --mode quantiles --outdir 2_output
-```
-
-The config is discovered from `--config`, the `LANTERN_CONFIG` environment
-variable, or `lantern.toml` in the current directory, in that order;
-built-in defaults apply otherwise.
-
-## CSV expectations
-
-- **Row 0**: sample labels containing scenario keywords, so columns can be
-  grouped per scenario
-- **Row 2**: metric headers used to find columns (e.g. `TotalEquivalentWTW`,
-  `ConsumedEnergy`)
-- **Row 3**: subcategory labels for multi-metrics
-- **Row 5+**: yearly data; the first column holds the years
-
-All row indices are configurable via `[csv_layout]` in `lantern.toml`.
-
-## Command-line options
-
-```bash
-lantern CSV_PATH [--mode {quantiles,traces}] [--config PATH] [--outdir DIR]
-```
-
-| Flag | Description |
-|------|-------------|
-| `--mode quantiles` | Percentile bands with representative overlay (default). |
-| `--mode traces` | Faint raw sample traces, no bands or representative overlay. |
-| `--config PATH` | Path to `lantern.toml` (overrides env var and CWD search). |
-| `--outdir DIR` | Output directory (default `2_output`). |
-| `--init` | Generate a starter `lantern.toml` from the CSV structure. |
-| `--validate` | Validate the config against the CSV and report issues. |
-| `--list-scenarios` | List unique scenarios found in the CSV, then exit. |
-| `--filter SUBSTRING` | Filter scenarios by substring (with `--list-scenarios`). |
-
-## Outputs
-
-- `<outdir>/<short>.html` — single-metric combined view; per-scenario copies
-  in `<outdir>/<scenario>/`
-- `<outdir>/<short>_grid.html` — multi-metric subplot grid, likewise
-- `<outdir>/representatives.csv` — the chosen representative columns in the
-  original CSV layout
-- `<outdir>/percentiles.csv` — tidy long table of the configured quantiles
-  per metric, scenario, subcategory, and year
-
-`<short>` is the short key assigned to each metric in the config
-(e.g. `emissions`, `installed_power`).
-
-## Documentation
-
-- [`docs/user-manual.md`](docs/user-manual.md) — the full guide:
-  configuration reference, visualization modes, representative-pathway
-  selection, worked example, troubleshooting
-- [Navigate documentation](https://zerocarbonshipping.github.io/navigate-zcs/)
-  — the simulation model that produces the input data
-
-## Testing
-
-```bash
-pip install -e ".[dev]"
-pytest
-```
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution guidelines and
-[`CODESTYLE.md`](CODESTYLE.md) for coding conventions.
-
 ## License
 
 Copyright 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping.
 
-Lantern is licensed under two licenses, depending on the type of content:
-
-- The software — the `lantern` package, tests, and all build and tooling
-  files — is licensed under the
-  [Apache License 2.0](LICENSES/Apache-2.0.txt) (see also the root
-  [LICENSE](LICENSE) file).
-- The documentation and examples are licensed under
-  [Creative Commons Attribution 4.0 International](LICENSES/CC-BY-4.0.txt)
-  (CC-BY-4.0).
-
-Every file declares its license through an `SPDX-License-Identifier` header
-or through the metadata in [REUSE.toml](REUSE.toml), following the
-[REUSE specification](https://reuse.software/). The full license texts are
-in the [LICENSES](LICENSES/) directory.
+The `lantern` package and all build and tooling files are licensed under the
+[Apache License 2.0](LICENSES/Apache-2.0.txt) (see also [LICENSE](LICENSE));
+the documentation under [CC-BY-4.0](LICENSES/CC-BY-4.0.txt). Every file
+declares its license through an `SPDX-License-Identifier` header or
+[REUSE.toml](REUSE.toml), following the [REUSE specification](https://reuse.software/).

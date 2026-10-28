@@ -3,16 +3,20 @@
 
 cff-version: 1.2.0
 title: Lantern
-abstract: "Quantile plots and representative-pathway selection for Navigate scenario ensembles"
+abstract: "Browser viewer for Navigate results files: interactive Plotly plots of one or several runs"
 type: software
 license: Apache-2.0
-version: 1.0.0
+version: 2.0.0
 repository-code: "https://github.com/zerocarbonshipping/lantern-zcs"
-date-released: 2026-08-18
+date-released: 2026-10-13
 authors:
   - given-names: Mathias
     family-names: Hintze
     email: mathias.hintze@zerocarbonshipping.com
+    affiliation: "Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping"
+  - given-names: Julius
+    family-names: Thomas
+    email: julius.thomas@zerocarbonshipping.com
     affiliation: "Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping"
   - given-names: "Frederik Winkel"
     family-names: Lehn
