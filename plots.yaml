@@ -83,16 +83,20 @@ main:
     series: global.installed_power
 
   power_converted_from:
-    title: Power converted from
+    title: Cumulative power converted from
+    unit: MW
     variants: [lines, stack]
     draw: stack
+    cumulative: true
     series: global.fuel_converted_power
 
   power_converted_to:
-    title: Power converted to
+    title: Cumulative power converted to
+    unit: MW
     variants: [lines, stack]
     draw: stack
     split_by: key2
+    cumulative: true
     series: global.fuel_converted_power
 
   # the feeds include the processes of the supply chain, not only the feedstocks
