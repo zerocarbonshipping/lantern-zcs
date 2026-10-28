@@ -80,6 +80,14 @@ jobs:
     needs: build
 
     steps:
+      # the catalogue alone: Lantern reads plots.yaml from the working folder, and the source folder would shadow
+      # the installed package
+      - name: Checkout the catalogue
+        uses: actions/checkout@v6
+        with:
+          sparse-checkout: /plots.yaml
+          sparse-checkout-cone-mode: false
+
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
