@@ -14,19 +14,20 @@ import plotly.colors
 import yaml
 
 # keys whose values are numbers or true/false; YAML reads every other value as text
-_TYPED = {"scale", "cumulative", "per_gj", "total"}
+_TYPED = {"scale", "cumulative", "per_gj", "total", "size", "weight"}
 _TEXT = "tag:yaml.org,2002:str"
 _PLOT_KEYS = {"title", "unit", "panels", "select_view", "y_axis", "variants", "layers"}
 _AXES = {"zero", "fit"}
 _VARIANTS = {"lines", "stack"}
-_THEME_KEYS = {"swatches", "palette"}
+_THEME_KEYS = {"swatches", "palette", "font"}
+_FONT_KEYS = {"family", "size", "weight", "color"}
 # the keys of plots.yaml that are not sections: the display names and colours of runs, and overrides of entries of
 # labels.yaml and theme.yaml
 _RUNS = "customize_runs"
 _LABELS = "labels"
 _THEME = "theme"
-_RUN_KEYS = {"name", "color"}
-_LABEL_KEYS = {"name", "color"}
+# an entry that names a run or a label: a display name, or a mapping of name and color
+_NAME_KEYS = {"name", "color"}
 # where plots.yaml is looked for, in order
 PLOTS_FILES = (Path.cwd() / "plots.yaml", Path.home() / "plots.yaml")
 
@@ -63,13 +64,17 @@ class Plot:
     y_axis: str = "zero"
 
 
+_LAYER_KEYS = {f.name for f in fields(Layer)}
+
+
 @dataclass(frozen=True)
 class Style:
-    """How figures look: colours per label and per run, and the cycle for the rest."""
+    """How figures look: colours per label and per run, the cycle for the rest, and the font, as Plotly takes it."""
 
     colors: dict[str, str]
     run_colors: dict[str, str]
     palette: tuple[str, ...]
+    font: dict[str, str | float]
 
 
 @dataclass(frozen=True)
@@ -94,8 +99,8 @@ class Config:
 def load_config() -> Config:
     """Read plots.yaml, the first of PLOTS_FILES there is, and the packaged labels.yaml and theme.yaml, with the
     entries plots.yaml overrides."""
-    plots = _plots_file()
-    runs = _runs(plots.pop(_RUNS, None) or {})
+    plots = _catalogue()
+    runs = _named(plots.pop(_RUNS, None) or {}, f"plots.yaml: {_RUNS}", "run")
     theme = _theme(plots.pop(_THEME, None) or {})
     swatches = theme["swatches"]
     entries = _labels(plots.pop(_LABELS, None) or {})
@@ -112,25 +117,26 @@ def load_config() -> Config:
             colors={label: color for label, value in entries if (color := _color(value.get("color"), swatches))},
             run_colors={run: color for run, value in runs.items() if (color := _color(value.get("color"), swatches))},
             palette=tuple(_color(c, swatches) or c for c in theme["palette"]),
+            font=theme["font"],
         ),
     )
 
 
-def _runs(raw: object) -> dict[str, dict]:
-    """The runs entry of plots.yaml: each run's display name, or its name and colour."""
+def _named(raw: object, where: str, what: str) -> dict[str, dict]:
+    """Entries that name runs or labels, as {name, color} each: a display name alone, or a mapping of name and color."""
     if not isinstance(raw, dict):
-        raise ConfigError(f"plots.yaml: {_RUNS} must map run names to a display name or to name and color")
+        raise ConfigError(f"{where} must map each {what} to a display name or to name and color")
 
-    runs = {run: value if isinstance(value, dict) else {"name": value} for run, value in raw.items()}
+    entries = {key: value if isinstance(value, dict) else {"name": value} for key, value in raw.items()}
 
-    for run, value in runs.items():
-        if set(value) - _RUN_KEYS or not all(isinstance(v, str) for v in value.values()):
-            raise ConfigError(f"plots.yaml: run '{run}' takes a display name, or name and color")
+    for key, value in entries.items():
+        if set(value) - _NAME_KEYS or not all(isinstance(v, str) for v in value.values()):
+            raise ConfigError(f"{where}: {what} '{key}' takes a display name, or name and color")
 
-    return runs
+    return entries
 
 
-def _plots_file() -> dict:
+def _catalogue() -> dict:
     """The entries of the first plots.yaml there is, in the working folder or the home folder."""
     for path in PLOTS_FILES:
         if path.is_file():
@@ -144,40 +150,35 @@ def _package(name: str) -> dict:
 
 
 def _theme(override: object) -> dict:
-    """The packaged theme with the entries the theme key of plots.yaml overrides: swatches by name, the palette whole;
-    without any palette, Plotly's own colours."""
+    """The packaged theme with the entries the theme key of plots.yaml overrides: swatches by name, the palette and the
+    font whole; without any palette, Plotly's own colours."""
     theme = _package("theme.yaml")
 
     if not isinstance(override, dict) or set(override) - _THEME_KEYS:
-        raise ConfigError(f"plots.yaml: {_THEME} takes {' and '.join(sorted(_THEME_KEYS))}")
+        raise ConfigError(f"plots.yaml: {_THEME} takes {', '.join(sorted(_THEME_KEYS))}")
 
     swatches = theme.get("swatches", {}) | override.get("swatches", {})
     palette = override.get("palette") or theme.get("palette") or plotly.colors.qualitative.Plotly
+    font = override.get("font") or theme.get("font") or {}
 
-    return {"swatches": swatches, "palette": palette}
+    if not isinstance(font, dict) or set(font) - _FONT_KEYS:
+        raise ConfigError(f"theme: font takes {', '.join(sorted(_FONT_KEYS))}")
+
+    return {"swatches": swatches, "palette": palette, "font": font}
 
 
 def _labels(override: object) -> list[tuple[str, dict]]:
     """The entries of the packaged labels.yaml, (label, {name, color}), in stacking order, with those the labels key of
     plots.yaml overrides, by label; a label new there comes after the packaged ones."""
-    labels = _package("labels.yaml")
     # the groups only organise the file; the order of the labels in it is the stacking order
-    entries = [(label, value) for group in labels.values() for label, value in group.items()]
-    entries = [(label, value if isinstance(value, dict) else {"name": value}) for label, value in entries]
+    groups = [_named(group, "labels.yaml", "label") for group in _package("labels.yaml").values()]
+    entries = [(label, value) for group in groups for label, value in group.items()]
     duplicates = sorted({label for label, _ in entries if sum(other == label for other, _ in entries) > 1})
 
     if duplicates:
         raise ConfigError(f"labels.yaml lists {', '.join(duplicates)} more than once")
 
-    if not isinstance(override, dict):
-        raise ConfigError(f"plots.yaml: {_LABELS} must map labels to a display name or to name and color")
-
-    override = {label: value if isinstance(value, dict) else {"name": value} for label, value in override.items()}
-
-    for label, value in override.items():
-        if set(value) - _LABEL_KEYS or not all(isinstance(v, str) for v in value.values()):
-            raise ConfigError(f"plots.yaml: label '{label}' takes a display name, or name and color")
-
+    override = _named(override, f"plots.yaml: {_LABELS}", "label")
     entries = [(label, value | override.get(label, {})) for label, value in entries]
     known = {label for label, _ in entries}
 
@@ -240,14 +241,13 @@ def _plots(plot_id: str, section: str, raw: dict) -> list[Plot]:
 
 
 def _plot(plot_id: str, section: str, raw: dict) -> Plot:
-    layer_keys = {f.name for f in fields(Layer)} | {"total"}
+    layer_keys = _LAYER_KEYS | {"total"}
     unknown = set(raw) - _PLOT_KEYS - layer_keys
 
     if unknown:
         raise ConfigError(f"plot '{plot_id}' has unknown keys: {', '.join(sorted(unknown))}")
 
     layers = raw.get("layers") or [{k: v for k, v in raw.items() if k in layer_keys}]
-
     y_axis = raw.get("y_axis", "zero")
 
     if y_axis not in _AXES:
@@ -268,7 +268,7 @@ def _plot(plot_id: str, section: str, raw: dict) -> Plot:
 def _layer(plot_id: str, raw: dict) -> Layer:
     values = dict(raw)
     total = values.pop("total", False)
-    unknown = set(values) - {f.name for f in fields(Layer)}
+    unknown = set(values) - _LAYER_KEYS
 
     if unknown:
         raise ConfigError(f"a layer of plot '{plot_id}' has unknown keys: {', '.join(sorted(unknown))}")

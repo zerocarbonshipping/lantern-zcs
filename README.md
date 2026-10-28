@@ -36,14 +36,15 @@ lantern study/ other.parquet            # every .parquet below study/, and the f
 lantern --list e2e.parquet              # the runs, and the ids of the plots with data
 lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.png
 lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' e2e.parquet   # the two runs in one figure
+lantern --plot 'fleet_speed[][Ferry]' e2e.parquet   # one panel, of each run
 lantern --data study/                   # every row of the files as data.csv
 ```
 
 | Argument | Meaning |
 |---|---|
 | `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
-| `--plot ID[RUN,...]` | no viewer: write one plot as PNG, 1920 by 1080 pixels, as the viewer first opens it: a plot with a view select in its first view. `ID` alone writes it for each run, as `plots/<run>/<id>.png` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.png`. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
-| `--list` | no viewer: print the loaded runs and the id, section and title of every plot with data, for `--plot` |
+| `--plot ID[RUN,...][PANEL]` | no viewer: write one plot as PNG, 1920 by 1080 pixels, as the viewer first opens it: a plot with a view select in its first view. `ID` alone writes it for each run, as `plots/<run>/<id>.png` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.png`. A second bracket names one panel, by the key `--list` prints or its display name, to draw alone, as the viewer enlarges it, with `_<panel>` added to the file name; `ID[][PANEL]` is that panel of each run. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
+| `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
 | `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder. Needs no kaleido. |
 | `-h`, `--help` | the arguments |
 
@@ -57,7 +58,10 @@ rendered, print `Error: ...` and exit with 1. The viewer listens on
 - **Runs** are listed in the right column, a plain file as one run and a
   compiled file with its runs under it. Click selects a run; Ctrl-click
   (Cmd-click on a Mac) adds or removes one, to compare. A selected run's
-  button takes its colour.
+  button takes its colour. A Horizon study's file lists a run per scenario,
+  the representative sample, and draws the 5th to 95th percentile over the
+  samples as a band behind each line and the median dashed; a stack shows
+  the representative alone, as percentiles do not add up.
 - **Plots** are listed by section on the left; a plot none of the selected
   runs has data for is greyed out.
 - **Views and panels**: a plot with `select_view` shows one node, fuel or
@@ -82,9 +86,9 @@ other two are part of the package.
 
 | File | Where | What it holds | Manual |
 |---|---|---|---|
-| `plots.yaml` | the folder Lantern is started in, else the home folder; this repository's is [`plots.yaml`](plots.yaml) in its root | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`PLOTS.md`](PLOTS.md) |
+| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`plots.yaml`](plots.yaml) in its root | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`PLOTS.md`](PLOTS.md) |
 | [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
-| [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, and the palette for labels and runs without a colour | header of the file |
+| [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
 
 Without a `plots.yaml` in either place Lantern stops and says so.
 

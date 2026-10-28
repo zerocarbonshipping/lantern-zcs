@@ -7,8 +7,8 @@ SPDX-License-Identifier: CC-BY-4.0
 
 [`plots.yaml`](plots.yaml) lists every plot Lantern shows: which series of the
 results it draws, how, and in which panels. Lantern reads it from the folder it
-is started in, else from the home folder, so a study can carry its own
-catalogue; this repository's is in its root. Display names, colours and order
+is started in, or, if there is none, from the home folder, so a study can carry
+its own catalogue over a general one; this repository's is in its root. Display names, colours and order
 of the series are in [`lantern/labels.yaml`](lantern/labels.yaml) and the
 colours in [`lantern/theme.yaml`](lantern/theme.yaml), both part of the
 package; `plots.yaml` can override their entries, see
@@ -137,8 +137,10 @@ columns, keep the label colours of `labels.yaml`.
 Two more top-level keys of `plots.yaml` are not sections. `labels` overrides
 entries of the package's `labels.yaml` by label, in the same form, and adds
 labels it does not have, after its own; `theme` overrides entries of the
-package's `theme.yaml`: `swatches` by colour name, and `palette` as a whole.
-Both are empty in this repository's `plots.yaml`:
+package's `theme.yaml`: `swatches` by colour name, and `palette` and `font`
+as a whole. The font is the figures' text, `family`, `size`, `weight` and
+`color` as Plotly takes them; the weight is a number, 300 for light. Both keys are empty in this repository's `plots.yaml`, with
+the examples commented out:
 
 ```yaml
 labels:
@@ -147,6 +149,7 @@ labels:
 theme:
   swatches: {accent: "#447a7a"}
   palette: [accent, blue_7, yellow_5]
+  font: {family: Arial, size: 14, weight: 300}
 ```
 
 A colour name is one of the theme's: the Center's palettes `black`, `red`,

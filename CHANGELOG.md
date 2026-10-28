@@ -18,11 +18,11 @@ Navigate run writes.
 - `lantern [PATH ...]` opens the viewer in the browser with the results files
   at PATH; a folder loads every `.parquet` file below it.
   Files can also be added on the page, and a Refresh button reads the
-  configuration again and reloads PATH from disk. `--plot ID[RUN,...]`
+  configuration again and reloads PATH from disk. `--plot ID[RUN,...][PANEL]`
   writes one plot as PNG into `plots/` instead, through the optional kaleido
   and with a progress bar, of each run or of the runs in brackets together,
-  by the ids `--list` prints. `--data` writes the rows of the files as
-  `data.csv`.
+  and only one panel if named, by the ids and panels `--list` prints.
+  `--data` writes the rows of the files as `data.csv`.
 - A file is never read whole: on loading, Lantern reads a run at a time, only
   the series the plots name, and keeps each plot's lines. Polars runs on one
   thread unless `POLARS_MAX_THREADS` says otherwise, as its many small queries
@@ -30,8 +30,8 @@ Navigate run writes.
 - `plots.yaml`, read from the folder Lantern is started in or else from the
   home folder, declares what is plotted; the packaged `labels.yaml` gives the
   names, colour names and order of the series and `theme.yaml` the Center's
-  colours, the palettes of its chart in shades 0 to 8. The `labels` and
-  `theme` keys of `plots.yaml` override their entries. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
+  colours, the palettes of its chart in shades 0 to 8, and the figures' font.
+  The `labels` and `theme` keys of `plots.yaml` override their entries. A series is `kind.attribute`, e.g. `fleet.newbuilds`, and
   `cumulative: true` sums a rate over the time steps up to each date.
   `per_gj: true` divides a per-ton value by the heating value of its
   fuel from the file's metadata, e.g. bunker prices and plant costs in USD/GJ.
@@ -40,8 +40,11 @@ Navigate run writes.
   plot and run columns resize by dragging their edges. The modebar downloads
   the plot as PNG or SVG and the drawn lines as CSV, a row per value.
 - Compiled files: Lantern opens the compiled results file of a Horizon study,
-  with a run per scenario, each a single summary. Each stacked plot also comes
-  as lines, one panel per stacked series, followed by the stack as
+  with a run per scenario: its representative sample, drawn as the line, and
+  the summary runs Horizon writes with it and names in the file's metadata
+  under `summaries`, drawn as a dashed median and a band behind the line, and left out of a
+  stack. The CSV download carries them as columns. Each stacked plot also
+  comes as lines, one panel per stacked series, followed by the stack as
   "<title> (Stacked)".
   Runs are listed in the sidebar, compiled files marked; Ctrl-click compares
   runs, overlaid in a colour each, or for stacks and plots that tell series

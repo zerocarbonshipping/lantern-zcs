@@ -31,12 +31,13 @@ def load(source: Path | bytes, name: str, plots: tuple[Plot, ...]) -> Results:
     file = data.open_file(source, name)
     lines: dict[str, list[pl.DataFrame]] = {plot.id: [] for plot in plots}
 
-    # a run's rows stay in memory only while its plots are prepared
+    # a run's rows, and its summary runs', stay in memory only while its plots are prepared
     for run_name in file.runs:
         run = data.read_run(file, run_name, plots)
+        summary = {column: data.read_run(file, other, plots) for column, other in file.summaries.get(run_name, {}).items()}
 
         for plot in plots:
-            frame = data.prepare(plot, run)
+            frame = data.prepare(plot, run, summary)
 
             if not frame.is_empty():
                 lines[plot.id].append(frame)

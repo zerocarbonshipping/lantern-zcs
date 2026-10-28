@@ -5,7 +5,9 @@
 lines.
 
 A file is never read whole: one scan of a run reads the rows of the plotted series only, with text as categories,
-and each plot reduces them to a line per label.
+and each plot reduces them to a line per label. A Horizon study's file holds, per scenario, the representative run
+and its summary over the samples as runs of their own, which its metadata names under summaries; those give the
+scenario's lines their median and band.
 """
 
 from __future__ import annotations
@@ -26,6 +28,13 @@ COLUMNS = (*LABELS, "date", "value")
 LINE = ("view", "panel", "layer", "label")
 _POINT = (*LINE, "date")
 _TEXT = ("view", "panel", "label")
+# the columns of the summary of a run over the samples it represents, as a Horizon file's metadata names them
+SUMMARY = ("median", "low", "high")
+# the columns of prepared lines, as prepare() returns them: the value, and the summary where the run has one
+LINES = {
+    "run": pl.String, "view": pl.String, "panel": pl.String, "layer": pl.Int32, "label": pl.String, "date": pl.Date,
+    "value": pl.Float64, **{column: pl.Float64 for column in SUMMARY},
+}
 _YEAR = 365.25  # days, the calendar year Navigate counts steps in
 
 _VALUE = pl.col("value")
@@ -37,13 +46,15 @@ class ResultsFileError(ValueError):
 
 @dataclass(frozen=True)
 class ResultsFile:
-    """An opened results file: its name, the unit of each attribute, its table, read lazily, its runs, the length of
-    each time step in years and the heating values, GJ/t, of its fuels and of each plant's fuel."""
+    """An opened results file: its name, the unit of each attribute, its table, read lazily, its runs, each run's
+    summary runs by column, the length of each time step in years and the heating values, GJ/t, of its fuels and of
+    each plant's fuel."""
 
     name: str
     units: dict[str, str]
     scan: pl.LazyFrame
     runs: list[str]
+    summaries: dict[str, dict[str, str]]
     steps: pl.DataFrame
     heating_values: dict[str, float]
     plant_fuel: dict[str, str]
@@ -58,7 +69,8 @@ class ResultsFile:
 
 
 def open_file(source: Path | bytes, name: str) -> ResultsFile:
-    """Open a results file: one run, or, compiled, several runs named '<file>/<run>', one summary each."""
+    """Open a results file: one run, or, compiled, several runs named '<file>/<run>'; a Horizon file's summary runs
+    are listed under the runs they summarise, not as runs."""
     try:
         meta = json.loads(pl.read_parquet_metadata(_source(source))["navigate"])
         schema = pl.read_parquet_schema(_source(source))
@@ -70,14 +82,8 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
         scan = pl.scan_parquet(_source(source))
         compiled = "run" in schema
         runs = _runs(scan, name) if compiled else [name]
-        # an ensemble has several samples per run, which cannot be shown as one summary
-        samples = _most_samples(scan, compiled) if "sample" in schema else 1
-
-        if samples > 1:
-            raise ResultsFileError(
-                f"'{name}' is an ensemble of up to {samples} samples per run; Lantern opens one summary per run"
-            )
-
+        summaries = _summaries(meta, name)
+        runs = [run for run in runs if run not in {r for summary in summaries.values() for r in summary.values()}]
         dates = scan.select(pl.col("date").unique()).collect(engine="streaming").sort("date")
 
     # a ResultsFileError is a ValueError, so it passes before the others are wrapped as one
@@ -92,7 +98,7 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
     constants = meta.get("constants", {})
 
     return ResultsFile(
-        name, meta.get("units", {}), scan, runs, steps, constants.get("lower_heating_value", {}),
+        name, meta.get("units", {}), scan, runs, summaries, steps, constants.get("lower_heating_value", {}),
         meta.get("plant_fuel", {}), compiled,
     )
 
@@ -108,11 +114,12 @@ def _runs(scan: pl.LazyFrame, name: str) -> list[str]:
     return runs.get_column("run").sort().to_list()
 
 
-def _most_samples(scan: pl.LazyFrame, compiled: bool) -> int:
-    """The most samples any run of a file with a sample column has."""
-    samples = scan.select(*(("run",) if compiled else ()), "sample").unique().collect(engine="streaming")
-
-    return samples.group_by("run").len().get_column("len").max() if compiled else samples.height
+def _summaries(meta: dict, name: str) -> dict[str, dict[str, str]]:
+    """Each run's summary runs, by column, as a Horizon file's metadata names them, all named '<file>/<run>'."""
+    return {
+        f"{name}/{run}": {column: f"{name}/{other}" for column, other in summary.items()}
+        for run, summary in meta.get("summaries", {}).items()
+    }
 
 
 def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
@@ -157,9 +164,26 @@ def read_run(file: ResultsFile, run: str, plots: tuple[Plot, ...]) -> Run:
     return Run(run, rows.partition_by("kind", "attribute", as_dict=True), rows.clear(), file)
 
 
-def prepare(plot: Plot, run: Run) -> pl.DataFrame:
-    """Resolve every layer of a plot of a run, in each of its views, into lines: run, view, panel, layer, label, date,
-    value; a value is the sum of the series that share a label, missing where none has one."""
+def prepare(plot: Plot, run: Run, summary: dict[str, Run] | None = None) -> pl.DataFrame:
+    """Resolve every layer of a plot of a run, in each of its views, into lines, the columns of LINES: a value is the
+    sum of the series that share a label, missing where none has one, and the median, low and high are the values of
+    the run's summary runs, missing without one."""
+    lines = _prepare(plot, run)
+
+    for column in SUMMARY:
+        other = (summary or {}).get(column)
+
+        if other is None or lines.is_empty():
+            lines = lines.with_columns(pl.lit(None, pl.Float64).alias(column))
+            continue
+
+        values = _prepare(plot, other).select(*_POINT, pl.col("value").alias(column))
+        lines = lines.join(values, on=_POINT, how="left")
+
+    return lines
+
+
+def _prepare(plot: Plot, run: Run) -> pl.DataFrame:
     layers = [_lines(index, layer, plot, run) for index, layer in enumerate(plot.layers)]
     lines = pl.concat(layers).with_columns(pl.col(*_TEXT).cast(pl.String)).sort(_POINT)
 

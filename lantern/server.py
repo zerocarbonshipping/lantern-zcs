@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import threading
+from collections import Counter
 from collections.abc import Callable
 from functools import cache
 from http import HTTPStatus
@@ -75,11 +76,22 @@ class Session:
         self._uploads.pop(name, None)
         self._cache.clear()
 
+    @property
+    def runs(self) -> list[str]:
+        """Every loaded run, in the order of the files."""
+        return [run for f in self.files.values() for run in f.runs]
+
+    def short_names(self, runs: list[str]) -> dict[str, str]:
+        """Each run's name within its file, in the order given; the full id where two files have a run of that name."""
+        short = {run: run.removeprefix(f"{f.name}/") for f in self.files.values() for run in f.runs}
+
+        return _distinct({run: short[run] for run in runs})
+
     def state(self) -> dict:
         """The files with their runs, and each run's display name, for the page."""
         files = [{"name": f.name, "compiled": f.compiled, "runs": f.runs} for f in self.files.values()]
 
-        return {"files": files, "names": self._names([run for f in self.files.values() for run in f.runs])}
+        return {"files": files, "names": self._names(self.runs)}
 
     def catalogue(self, runs: list[str]) -> list[dict]:
         """The plots, with whether any of the runs has data for each and the views of a split plot, [value, title]."""
@@ -99,51 +111,63 @@ class Session:
     def draw(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> go.Figure:
         """One figure of the runs, or one panel of it enlarged; a split plot shows its first node by default."""
         plot = self.config.plot(plot_id)
-        node = node or next(iter(self._nodes(plot, runs)), None)
-        lines = self._lines(plot, runs).filter(pl.col("view") == (node or "")).drop("view")
+        lines, _ = self._view(plot, runs, node)
 
         return figures.build(plot, lines, data.unit(plot, self._units()), self.config, self._names(runs), panel)
 
     def table(self, plot_id: str, runs: list[str], node: str | None, panel: str | None = None) -> tuple[str, str]:
         """The lines of a figure as CSV, with a file name: the plot's id and unit."""
         plot = self.config.plot(plot_id)
-        node = node or next(iter(self._nodes(plot, runs)), None)
-        lines = self._lines(plot, runs)
-        lines = lines.filter(pl.col("view") == (node or "")) if not lines.is_empty() else lines
+        lines, node = self._view(plot, runs, node)
         unit = data.unit(plot, self._units()).replace("/", " per ")
         parts = (plot_id, self.config.labels.get(node, node) if node else "", f"({unit})" if unit else "")
         name = " ".join(filter(None, parts))
 
         return figures.table(lines, self.config, self._names(runs), panel), f"{name}.csv"
 
+    def panels(self, plot_id: str, runs: list[str], node: str | None = None) -> list[list[str]]:
+        """The panels of a figure, [value, title], in the order drawn."""
+        lines, _ = self._view(self.config.plot(plot_id), runs, node)
+
+        return [[p, self.config.labels.get(p, p)] for p in figures.panels_of(lines, self.config)]
+
     def _lines(self, plot: Plot, runs: list[str]) -> pl.DataFrame:
         """The prepared lines of a plot of the runs, over all its views."""
         lines = [f.plots[plot.id] for f in self.files.values() if plot.id in f.plots and not set(f.runs).isdisjoint(runs)]
 
-        return pl.concat(lines).filter(pl.col("run").is_in(runs)) if lines else pl.DataFrame()
+        return pl.concat(lines).filter(pl.col("run").is_in(runs)) if lines else pl.DataFrame(schema=data.LINES)
+
+    def _view(self, plot: Plot, runs: list[str], node: str | None) -> tuple[pl.DataFrame, str | None]:
+        """The lines of a plot of the runs in one view, the given node or else the first, and that node."""
+        node = node or next(iter(self._nodes(plot, runs)), None)
+
+        return self._lines(plot, runs).filter(pl.col("view") == (node or "")), node
 
     def _nodes(self, plot: Plot, runs: list[str]) -> list[str]:
-        lines = self._lines(plot, runs)
+        views = self._lines(plot, runs).get_column("view").unique().to_list()
 
-        return [] if lines.is_empty() else sorted(v for v in lines.get_column("view").unique().to_list() if v)
+        return sorted(v for v in views if v)
 
     def _names(self, runs: list[str]) -> dict[str, str]:
-        """Each run's display name: that plots.yaml gives its name within its compiled file, or the file's, else the
-        name itself; the full id where two are alike."""
-        short = {run: run.removeprefix(f"{f.name}/") for f in self.files.values() for run in f.runs if run in runs}
-        short = {run: self.config.run_names.get(name, name) for run, name in short.items()}
-        names = list(short.values())
-
-        return {run: short[run] if names.count(short[run]) == 1 else run for run in runs}
+        """Each run's display name: that plots.yaml gives its name within its file, else that name; the full id where
+        two are alike."""
+        return _distinct({run: self.config.run_names.get(name, name) for run, name in self.short_names(runs).items()})
 
     def _units(self) -> dict[str, str]:
         return {k: v for f in self.files.values() for k, v in f.units.items()}
 
-    def _cached(self, key, compute):
+    def _cached[T](self, key: tuple, compute: Callable[[], T]) -> T:
         if key not in self._cache:
             self._cache[key] = compute()
 
         return self._cache[key]
+
+
+def _distinct(names: dict[str, str]) -> dict[str, str]:
+    """The names, with the key itself in place of a name two keys share."""
+    counts = Counter(names.values())
+
+    return {key: name if counts[name] == 1 else key for key, name in names.items()}
 
 
 def make_server(session: Session, port: int) -> ThreadingHTTPServer:

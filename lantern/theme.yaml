@@ -8,6 +8,10 @@
 #             palettes, black, red, orange, peach, yellow, green, blue and purple, in
 #             shades 0 (lightest) to 8 (darkest)
 #   palette   colours, in turn, of labels without one and of runs compared in one panel
+#   font      the figures' font: family, size, weight and color, as Plotly takes them;
+#             Plotly's own without one
+
+font: {family: Calibri, weight: 300}
 
 palette: [blue_7, yellow_5, green_5, peach_5, blue_5,
           yellow_7, green_4, peach_7, black_4, blue_8]

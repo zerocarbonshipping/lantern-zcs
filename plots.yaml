@@ -1,70 +1,28 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-# Lantern's plot catalogue: which series each plot shows, its panels and axes.
-# Lantern reads it from the folder it is started in, else from the home folder.
-# The names, colours and order of the labels are in the package's labels.yaml,
-# the colours in its theme.yaml.
-#
-# Plots are listed under their section; a plot's id is "<section>_<key>".
-# PLOTS.md in the repository is the manual.
-#
-# Three keys are not sections:
-#   customize_runs  gives a run a display name and a colour by its name, as
-#                   labels.yaml does a label: a colour name of the theme or a hex
-#                   value. Runs not listed are shown as named and take the palette
-#                   in turn.
-#   labels          overrides entries of labels.yaml by label, "label: Display
-#                   name" or "label: {name: Display name, color: blue_5}"; a label
-#                   not in labels.yaml comes after its labels
-#   theme           overrides entries of theme.yaml: swatches by colour name, and
-#                   the palette as a whole
-#
-# Plot keys:
-#   title        heading of the plot
-#   unit         y-axis unit; default: the file's unit of the first series
-#   panels       one panel per node, attribute, key1 or key2
-#   select_view  one view per node, attribute, key1 or key2, chosen in the page
-#   y_axis       zero (default) to start the y axis at zero, fit to fit it to
-#                the data
-#   variants     for a stack, [lines, stack] to list it first as lines, one
-#                panel per label, then as "<title> (Stacked)", id
-#                "<id>_stacked"; the stack's panels become the lines' views
-#   layers       series drawn in different ways, each a list item with the
-#                layer keys; a plot of one layer has them on the plot itself
-#
-# Layer keys:
-#   series       "kind.attribute", or a list of them: the attribute of every
-#                node of the kind, e.g. "fleet.newbuilds"; the global profile
-#                is "global.<attribute>"
-#   draw         line (default), stack or area
-#   split_by     the column that tells the series apart and labels them: key1
-#                (default), key2, node or attribute
-#   total        true to sum all series into one
-#   label        label of the total, or of a series without a split_by value
-#   scale        factor the values are multiplied by, e.g. -1 to draw below
-#                zero or 100 for a percentage
-#   line         plotly line dash for targets and limits: dash, dot or dashdot
-#   cumulative   true to sum a rate over the time steps up to each date, as
-#                Navigate's CUMULATIVE report does; give the plot its unit
-#   per_gj       true to divide a per-ton value by the heating value of its
-#                fuel, e.g. USD/t to USD/GJ: the fuel in key1, or a plant's own
-#                fuel, as the results file's metadata gives them; give the plot
-#                its unit
-#
-# Series that are zero or missing throughout are left out; missing values, such
-# as a limit without bound, are not drawn. Text that YAML reads as another type,
-# such as no, on or 2030, must be quoted; Lantern stops at its line otherwise.
+# Lantern's plot catalogue, read from the folder Lantern is started in, else from
+# the home folder. PLOTS.md in the repository is the manual; the names, colours
+# and order of the labels are in the package's labels.yaml, the colours and the
+# font in its theme.yaml. Quote text YAML would read otherwise: "no", "2030".
 
+# display names and colours of runs, by the run's name within its file
 customize_runs:
   no_regulation:     {name: No regulation, color: black_5}
   weak_regulation:   {name: Weak regulation, color: yellow_5}
   mid_regulation:    {name: Mid regulation, color: blue_5}
   strong_regulation: {name: Strong regulation, color: green_5}
 
+# entries of labels.yaml to override or add, by label
 labels: {}
+#  OIL:      {name: Crude oil, color: black_8}
+#  my_fleet: My fleet
 
+# entries of theme.yaml to override: swatches by colour name, the palette and the font whole
 theme: {}
+#  swatches: {accent: "#447a7a"}
+#  palette: [accent, blue_7, yellow_5]
+#  font: {family: Arial, size: 14, weight: 300}
 
 main:
   emission_absolute:

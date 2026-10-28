@@ -37,4 +37,5 @@ main { flex: 1; min-width: 0; overflow: auto; scrollbar-gutter: stable; padding:
 #runs .remove { width: auto; padding: 4px 6px; color: #5f6b73; }
 #runs .run.active.colored { background: var(--color); color: var(--text); }
 #runs .compiled { margin: 6px 0; padding-left: 6px; border-left: 3px solid #1f5c7a; }
+#runs .compiled .run { margin-top: 3px; }
 #runs small { padding: 0 5px; border-radius: 4px; background: #e3eef3; color: #1f5c7a; font-size: 11px; }
