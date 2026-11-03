@@ -19,8 +19,8 @@ Navigate run writes.
   at PATH; a folder loads every `.parquet` file below it.
   Files can also be added on the page, and a Refresh button reads the
   configuration again and reloads PATH from disk. `--plot ID[RUN,...][PANEL]`
-  writes one plot as PNG into `plots/` instead, through the optional kaleido
-  and with a progress bar, of each run or of the runs in brackets together,
+  writes one plot as an interactive HTML page into `plots/` instead, with a
+  progress bar, of each run or of the runs in brackets together,
   and only one panel if named, by the ids and panels `--list` prints.
   `--data` writes the rows of the files as `data.csv`.
 - A file is never read whole: on loading, Lantern reads a run at a time, only

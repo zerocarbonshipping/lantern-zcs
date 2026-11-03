@@ -42,7 +42,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(prog="lantern", description="Browser viewer for Navigate results files.")
     parser.add_argument("paths", nargs="*", type=Path, metavar="PATH", help="results files, or folders of them")
     parser.add_argument("--plot", action="append", type=_plot, metavar="ID[RUN,...][PANEL]",
-                        help=f"write one plot as PNG into {PLOTS}/, of each run, or of the runs in brackets drawn "
+                        help=f"write one plot as an HTML page into {PLOTS}/, of each run, or of the runs in brackets drawn "
                              "together, and only the panel in the second brackets if given; repeat it for more, by the "
                              "ids, runs and panels --list prints, and quote it where the shell expands []")
     parser.add_argument("--list", action="store_true",

@@ -1,7 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
 # SPDX-License-Identifier: Apache-2.0
 
-"""Write what the viewer shows to files instead of serving it: a plot as PNG, or the rows of the results files as one
+"""Write what the viewer shows to files instead of serving it: a plot as HTML, or the rows of the results files as one
 CSV."""
 
 from __future__ import annotations
@@ -14,13 +14,6 @@ from tqdm import tqdm
 from lantern import data
 from lantern.server import Session
 
-# an exported PNG is 1080p, 1920 by 1080 pixels: laid out at 1280 by 720 px and drawn at 1.5 pixels per px, so its
-# text and lines are half again as large as the viewer shows them on such a screen
-_SCALE = 1.5
-_WIDTH = round(1920 / _SCALE)
-_HEIGHT = round(1080 / _SCALE)
-
-
 # a plot to write: its id, the runs drawn together or None for each run alone, and a panel or None for all panels
 type Spec = tuple[str, list[str] | None, str | None]
 
@@ -30,12 +23,13 @@ class ExportError(Exception):
 
 
 def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
-    """Write plots as PNG, as the viewer opens them: a plot with a node select in its first view.
+    """Write plots as HTML pages, as the viewer opens them: a plot with a node select in its first view.
 
     A spec, a plot id, runs and a panel as listing() names them, writes that plot of each loaded run when runs is None,
     else one figure of the runs drawn together, as the viewer compares them, and only the panel if one is given, as
-    the viewer enlarges it; the paths written are printed. A run's own plot is <folder>/<run>/<plot id>.png, one of
-    several runs <folder>/<plot id>/<run>+<run>.png, a run named as in its file, and a panel's "_<panel>" before ".png".
+    the viewer enlarges it; the paths written are printed. A run's own plot is <folder>/<run>/<plot id>.html, one of
+    several runs <folder>/<plot id>/<run>+<run>.html, a run named as in its file, and a panel's "_<panel>" before
+    ".html".
     """
     every_run = session.runs
     # a / in a name would make a run a folder
@@ -45,7 +39,7 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
     figures: list[tuple[tuple[str, ...], str, str | None]] = []
     skipped = []
 
-    # every figure first, so the progress bar knows how many there are and a misspelled id stops before any is drawn
+    # every figure first, so the progress bar knows how many there are and a misspelled id stops before any is written
     for plot_id, runs, panel in specs:
         _known("plot", [plot_id], plot_ids)
         panel = _panel(session, plot_id, every_run, panel)
@@ -75,8 +69,12 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
         path = _path(folder, [names[run] for run in runs], plot_id, panel)
         path.parent.mkdir(parents=True, exist_ok=True)
         figure = session.draw(plot_id, list(runs), None, panel)
-        figure.update_layout(width=_WIDTH, height=_HEIGHT)
-        _write_png(figure, path)
+        # the page fills the window, as the viewer does, and a taller panel grid keeps its own height and scrolls
+        height = figure.layout.height
+        figure.layout.height = None
+        # plotly.js comes from its CDN, in the version the figure was made for, which keeps each file small
+        figure.write_html(path, include_plotlyjs="cdn", config={"displaylogo": False},
+                          default_height=f"max(100vh - 16px, {height}px)")
         paths.append(path)
 
     print(f"Wrote {len(paths)} plots to {folder}", flush=True)
@@ -130,9 +128,9 @@ def _path(folder: Path, names: list[str], plot_id: str, panel: str | None) -> Pa
     suffix = f"_{panel}" if panel else ""
 
     if len(names) == 1:
-        return folder / names[0] / f"{plot_id}{suffix}.png"
+        return folder / names[0] / f"{plot_id}{suffix}.html"
 
-    return folder / plot_id / ("+".join(names) + f"{suffix}.png")
+    return folder / plot_id / ("+".join(names) + f"{suffix}.html")
 
 
 def rows(sources: list[Path], path: Path) -> None:
@@ -156,14 +154,3 @@ def rows(sources: list[Path], path: Path) -> None:
 
     pl.concat(frames).sink_csv(path)
     print(f"Wrote the rows of {len(frames)} file(s) to {path}", flush=True)
-
-
-def _write_png(figure, path: Path) -> None:
-    try:
-        figure.write_image(path, format="png", scale=_SCALE)
-
-    except Exception as e:  # noqa: BLE001 - kaleido and its browser fail in many ways, each with its own message
-        raise ExportError(
-            f"cannot write {path}: PNG export needs kaleido and Chrome; pip install 'lantern-zcs[export]' and run "
-            f"plotly_get_chrome once\n{e}"
-        ) from e

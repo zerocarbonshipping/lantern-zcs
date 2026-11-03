@@ -10,8 +10,8 @@ Lantern is a local web app that plots the results of
 open-source maritime transition model. Every Navigate run writes a Parquet
 results file; Lantern opens one or many of them, prepares the plots that
 [`plots.yaml`](plots.yaml) declares and serves them as interactive
-Plotly figures to the browser. It can also write the same plots as PNG and the
-raw rows as CSV without a browser.
+Plotly figures to the browser. It can also write the same plots as HTML pages
+and the raw rows as CSV without starting the viewer.
 
 It is a small Python package, about 1 200 lines, with a static page of plain
 JavaScript and no build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
@@ -20,12 +20,8 @@ JavaScript and no build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
 
 ```bash
 pip install lantern-zcs             # the package
-pip install 'lantern-zcs[export]'   # plus kaleido, for PNG export
 pip install -e '.[dev]'             # a checkout, with ruff and reuse
 ```
-
-PNG export renders through [kaleido](https://github.com/plotly/Kaleido), which
-drives a Chrome instance. The `plotly_get_chrome` command installs one. Depending on the development evironment (WSL) other dependencies might exist.
 
 ## Use
 
@@ -34,7 +30,7 @@ navigate my_deck.nav -d ./assumptions   # writes my_deck.parquet
 lantern my_deck.parquet                 # opens the viewer on that run
 lantern study/ other.parquet            # every .parquet below study/, and the file
 lantern --list e2e.parquet              # the runs, and the ids of the plots with data
-lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.png
+lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.html
 lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' e2e.parquet   # the two runs in one figure
 lantern --plot 'fleet_speed[][Ferry]' e2e.parquet   # one panel, of each run
 lantern --data study/                   # every row of the files as data.csv
@@ -43,14 +39,14 @@ lantern --data study/                   # every row of the files as data.csv
 | Argument | Meaning |
 |---|---|
 | `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
-| `--plot ID[RUN,...][PANEL]` | no viewer: write one plot as PNG, 1920 by 1080 pixels, as the viewer first opens it: a plot with a view select in its first view. `ID` alone writes it for each run, as `plots/<run>/<id>.png` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.png`. A second bracket names one panel, by the key `--list` prints or its display name, to draw alone, as the viewer enlarges it, with `_<panel>` added to the file name; `ID[][PANEL]` is that panel of each run. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
+| `--plot ID[RUN,...][PANEL]` | no viewer: write one plot as an interactive HTML page, as the viewer first opens it: a plot with a view select in its first view. The page loads plotly.js from its CDN, so it needs a connection to open. `ID` alone writes it for each run, as `plots/<run>/<id>.html` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.html`. A second bracket names one panel, by the key `--list` prints or its display name, to draw alone, as the viewer enlarges it, with `_<panel>` added to the file name; `ID[][PANEL]` is that panel of each run. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
 | `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
-| `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder. Needs no kaleido. |
+| `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder |
 | `-h`, `--help` | the arguments |
 
 The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
-file that is not a results file, a bad YAML value, a PNG that cannot be
-rendered, print `Error: ...` and exit with 1. The viewer listens on
+file that is not a results file, a bad YAML value, an unknown plot, run or
+panel, print `Error: ...` and exit with 1. The viewer listens on
 `127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
 
 ### The page
