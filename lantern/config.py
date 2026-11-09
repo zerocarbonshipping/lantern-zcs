@@ -6,6 +6,8 @@ colours and order) and theme.yaml (the colours), which plots.yaml can override e
 
 from __future__ import annotations
 
+import re
+from collections.abc import Iterable
 from dataclasses import dataclass, fields, replace
 from importlib.resources import files
 from pathlib import Path
@@ -28,12 +30,13 @@ _LABELS = "labels"
 _THEME = "theme"
 # an entry that names a run or a label: a display name, or a mapping of name and color
 _NAME_KEYS = {"name", "color"}
+_HEX = re.compile(r"#([0-9a-fA-F]{3}){1,2}")
 # where plots.yaml is looked for, in order
 PLOTS_FILES = (Path.cwd() / "plots.yaml", Path.home() / "plots.yaml")
 
 
-class ConfigError(ValueError):
-    """A configuration file that Lantern cannot read."""
+class ConfigError(Exception):
+    """A configuration file that Lantern cannot read, or a plot it does not declare."""
 
 
 @dataclass(frozen=True)
@@ -93,7 +96,7 @@ class Config:
             if plot.id == plot_id:
                 return plot
 
-        raise KeyError(plot_id)
+        raise ConfigError(f"no plot '{plot_id}' in plots.yaml")
 
 
 def load_config() -> Config:
@@ -107,16 +110,16 @@ def load_config() -> Config:
 
     return Config(
         plots=tuple(
-            plot for section, entries_ in plots.items() for key, raw in entries_.items()
+            plot for section, section_entries in plots.items() for key, raw in section_entries.items()
             for plot in _plots(f"{section}_{key}", section.capitalize(), raw)
         ),
         labels={label: value["name"] for label, value in entries if "name" in value},
         run_names={run: value["name"] for run, value in runs.items() if "name" in value},
         order=tuple(label for label, _ in entries),
         style=Style(
-            colors={label: color for label, value in entries if (color := _color(value.get("color"), swatches))},
-            run_colors={run: color for run, value in runs.items() if (color := _color(value.get("color"), swatches))},
-            palette=tuple(_color(c, swatches) or c for c in theme["palette"]),
+            colors=_colors(entries, swatches, "label"),
+            run_colors=_colors(runs.items(), swatches, "run"),
+            palette=tuple(_color(color, swatches, "theme: palette") for color in theme["palette"]),
             font=theme["font"],
         ),
     )
@@ -158,6 +161,10 @@ def _theme(override: object) -> dict:
         raise ConfigError(f"plots.yaml: {_THEME} takes {', '.join(sorted(_THEME_KEYS))}")
 
     swatches = theme.get("swatches", {}) | override.get("swatches", {})
+
+    if not_hex := [name for name, value in swatches.items() if not _HEX.fullmatch(value)]:
+        raise ConfigError(f"theme: the swatches {', '.join(not_hex)} are not hex values like #3d5f87")
+
     palette = override.get("palette") or theme.get("palette") or plotly.colors.qualitative.Plotly
     font = override.get("font") or theme.get("font") or {}
 
@@ -191,12 +198,20 @@ def _read(text: str, name: str) -> dict:
     return yaml.safe_load(text)
 
 
-def _color(color: str | None, swatches: dict[str, str]) -> str | None:
-    """A label's colour: a swatch of the theme or a hex value; a swatch without a theme is left to the palette."""
-    if color is None or color.startswith("#"):
+def _colors(entries: Iterable[tuple[str, dict]], swatches: dict[str, str], what: str) -> dict[str, str]:
+    """The colours of the entries that give one, as hex, by label or run."""
+    return {key: _color(value["color"], swatches, f"{what} '{key}'") for key, value in entries if "color" in value}
+
+
+def _color(color: str, swatches: dict[str, str], where: str) -> str:
+    """A colour as hex: a hex value, #rgb or #rrggbb, as it is, else the theme's swatch of that name."""
+    if _HEX.fullmatch(color):
         return color
 
-    return swatches.get(color)
+    if color not in swatches:
+        raise ConfigError(f"{where}: '{color}' is neither a colour name of the theme nor a hex value like #3d5f87")
+
+    return swatches[color]
 
 
 def _check_text(node: yaml.Node, name: str, key: str | None = None) -> None:

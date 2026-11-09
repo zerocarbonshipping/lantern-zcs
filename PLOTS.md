@@ -165,27 +165,24 @@ lines show how each series develops; the stack shows the total and the
 shares. Without `variants` the stack is listed once, as written. `variants`
 on a plot without a stack layer is an error.
 
-## Panels, views and comparison
+## Panels and views
 
-`panels` lays the plot out as a grid of panels with a shared y axis; clicking
-one enlarges it, the toolbar select or Escape goes back. `select_view` keeps
-the plot to one node, fuel or attribute at a time, chosen in the toolbar. Both
-accept the same columns, so `panels: key1` with `select_view: node` shows one
-port at a time, a panel per fuel.
-
-Comparing runs (Ctrl-click in the sidebar) overlays lines of several runs on
-the same panels, a colour per run. A stack, or a plot whose series are told
-apart by colour, gets a column of panels per run instead.
+`panels` lays the plot out as a grid of panels with a shared y axis.
+`select_view` keeps the plot to one node, fuel or attribute at a time, chosen
+in the toolbar. Both accept the same columns, so `panels: key1` with
+`select_view: node` shows one port at a time, a panel per fuel.
 
 ## Rules of thumb
 
-- Series that are zero or missing throughout a run are left out, so a plot
-  can name series a results file may not have.
+- A series a run does not have is left out, so a plot can name series some
+  results files lack.
 - A missing value, such as a limit without bound, is not drawn.
 - Text that YAML reads as another type must be quoted: `"%"`, `"no"`, `"on"`,
   `"2030"`. Lantern stops at the line otherwise and says so.
 - Unknown keys, `total` together with `split_by`, a `y_axis` other than `zero`
   or `fit`, and malformed `variants` stop Lantern at start with the plot's id.
+- A colour that is neither a colour name of the theme nor a hex value, `#rgb`
+  or `#rrggbb`, stops Lantern at start with the label or run.
 - Keep an entry to what the title says. A quantity against its limit is one
   plot of two layers; two unrelated quantities are two plots.
 

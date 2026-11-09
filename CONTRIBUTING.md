@@ -38,15 +38,15 @@ Smaller features can be submitted directly as a pull request.
 ## Pull request expectations
 
 - Target the `dev` branch. Maintainers merge `dev` into `main` when a
-  release is cut.
+  release is cut; publishing the GitHub release uploads it to PyPI.
 - Keep each pull request focused on a single change. Unrelated fixes and
   refactors belong in separate pull requests.
 - Write a clear description: what the change does, why it is needed, and how
   it was verified.
 - Follow [`CODESTYLE.md`](CODESTYLE.md) and match the file you are editing.
-- Update documentation when behavior changes: the README and the header of
-  `plots.yaml` or `labels.yaml` for user-facing changes,
-  docstrings for code.
+- Update documentation when behavior changes: the README, `PLOTS.md` and the
+  headers of `plots.yaml`, `labels.yaml` and `theme.yaml` for user-facing
+  changes, docstrings for code.
 - Add an entry to `CHANGELOG.md` for user-visible changes. See the
   [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
 

@@ -12,7 +12,7 @@ import polars as pl
 from tqdm import tqdm
 
 from lantern import data
-from lantern.server import Session
+from lantern.session import Session
 
 # a plot to write: its id, the runs drawn together or None for each run alone, and a panel or None for all panels
 type Spec = tuple[str, list[str] | None, str | None]
@@ -23,7 +23,7 @@ class ExportError(Exception):
 
 
 def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
-    """Write plots as HTML pages, as the viewer opens them: a plot with a node select in its first view.
+    """Write plots as HTML pages, as the viewer opens them: a plot with views in its first view.
 
     A spec, a plot id, runs and a panel as listing() names them, writes that plot of each loaded run when runs is None,
     else one figure of the runs drawn together, as the viewer compares them, and only the panel if one is given, as
@@ -138,19 +138,14 @@ def rows(sources: list[Path], path: Path) -> None:
     attribute, key1, key2, date, value."""
     frames = []
 
-    for file, name in data.results_files(sources):
-        scan = pl.scan_parquet(file)
-        schema = scan.collect_schema()
+    labels = [pl.col(c).cast(pl.String) for c in data.LABELS]
 
-        if missing := set(data.COLUMNS) - set(schema):
-            raise data.ResultsFileError(f"'{name}' lacks the columns {', '.join(sorted(missing))}")
-
-        run = pl.concat_str([pl.lit(f"{name}/"), pl.col("run")]) if "run" in schema else pl.lit(name)
-        labels = [pl.col(c).cast(pl.String) for c in data.LABELS]
-        frames.append(scan.select(run.alias("run"), *labels, "date", pl.col("value").cast(pl.Float64)))
+    for source, name in data.results_files(sources):
+        file = data.open_file(source, name)
+        frames.append(file.scan.select(data.run_id(name, file.compiled), *labels, "date", pl.col("value").cast(pl.Float64)))
 
     if not frames:
-        raise data.ResultsFileError("no results files to write")
+        raise ExportError("no results files to write")
 
     pl.concat(frames).sink_csv(path)
     print(f"Wrote the rows of {len(frames)} file(s) to {path}", flush=True)

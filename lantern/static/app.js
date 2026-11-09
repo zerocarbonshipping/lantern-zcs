@@ -83,12 +83,10 @@ async function check() {
   $("offline").hidden = !offline;
 }
 
-// whether a colour, as "#rgb", "#rrggbb" or "rgb(r, g, b)", is light enough for dark text
+// whether a colour, "#rgb" or "#rrggbb", is light enough for dark text
 function light(color) {
-  const hex = color.startsWith("#") ? color.slice(1) : null;
-  const [r, g, b] = hex
-    ? (hex.length === 3 ? [...hex].map((c) => parseInt(c + c, 16)) : [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)))
-    : color.match(/\d+/g).map(Number);
+  const hex = color.length === 4 ? [...color.slice(1)].map((c) => c + c).join("") : color.slice(1);
+  const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
   return 0.299 * r + 0.587 * g + 0.114 * b > 160;
 }
 
@@ -149,24 +147,24 @@ function render() {
 
   const available = plots.filter((p) => p.available);
   const next = available.find((p) => p.id === current) || available[0];
-  if (next) show(next.id, $("node").value, $("panel").value || null);
+  if (next) show(next.id, $("view").value, $("panel").value || null);
 }
 
 // show a plot, or one panel of it enlarged; only the latest request is drawn
-async function show(id, node, panel = null) {
+async function show(id, view, panel = null) {
   const plot = plots.find((p) => p.id === id);
   const request = ++requests;
   current = id;
-  node = plot.nodes.some(([value]) => value === node) ? node : plot.nodes[0]?.[0];
+  view = plot.views.some(([value]) => value === view) ? view : plot.views[0]?.[0];
 
   for (const button of $("plots").querySelectorAll("button")) button.classList.toggle("active", button.dataset.id === id);
   $("title").textContent = plot.title;
-  $("node").hidden = !plot.nodes.length;
-  $("node").replaceChildren(...plot.nodes.map(([value, title]) => new Option(title, value, false, value === node)));
+  $("view").hidden = !plot.views.length;
+  $("view").replaceChildren(...plot.views.map(([value, title]) => new Option(title, value, false, value === view)));
 
   // the figure lists the full plot's panels, [value, title], for the panel select, and the panel of each cell
   // for a click on it; an enlarged panel stays enlarged in other runs that have it, else the server draws all panels
-  const params = query({ run: runs, node, panel });
+  const params = query({ run: runs, view, panel });
   const figure = await api(`/api/plots/${encodeURIComponent(id)}?${params}`);
   if (request !== requests) return;
   ({ panels, cells } = figure.layout.meta);
@@ -188,7 +186,7 @@ async function show(id, node, panel = null) {
   $("figure").style.minHeight = `${figure.layout.height}px`;
   Object.assign(figure.layout, size());
   // a redraw of the same view, as after a file is added or removed, keeps the zoom
-  figure.layout.uirevision = JSON.stringify([id, runs, node, panel]);
+  figure.layout.uirevision = JSON.stringify([id, runs, view, panel]);
   // the modebar gets a second camera that downloads the plot as SVG, next to the PNG one, and a disk that downloads
   // the drawn lines as CSV
   const svg = {
@@ -217,13 +215,13 @@ function size() {
 // a trace on axis x7 is in the seventh cell
 function enlarge(event) {
   const axis = event.points[0].data.xaxis || "x";
-  show(current, $("node").value, cells[Number(axis.slice(1) || 1) - 1]);
+  show(current, $("view").value, cells[Number(axis.slice(1) || 1) - 1]);
 }
 
 $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
-$("node").onchange = (e) => show(current, e.target.value);
-$("panel").onchange = (e) => show(current, $("node").value, e.target.value || null);
-window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("node").value); };
+$("view").onchange = (e) => show(current, e.target.value);
+$("panel").onchange = (e) => show(current, $("view").value, e.target.value || null);
+window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("view").value); };
 $("refresh").onclick = async (e) => {
   e.target.disabled = true;
 
