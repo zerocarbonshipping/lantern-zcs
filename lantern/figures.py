@@ -139,10 +139,7 @@ def _summary_traces(line: pl.DataFrame, name: str, group: str, color: str) -> li
 
 
 def _rgba(color: str, alpha: float = _BAND_ALPHA) -> str:
-    """A colour as rgba with the alpha: a hex value, else a CSS colour, which Plotly takes as is but cannot fade."""
-    if not color.startswith("#") or len(color) not in (4, 7):
-        return color
-
+    """A hex colour, #rgb or #rrggbb, as rgba with the alpha."""
     digits = color[1:] if len(color) == 7 else "".join(c * 2 for c in color[1:])
     r, g, b = (int(digits[i:i + 2], 16) for i in (0, 2, 4))
 
@@ -161,12 +158,12 @@ def table(series: pl.DataFrame, config: Config, runs: dict[str, str], panel: str
         series = series.filter(pl.col("panel") == panel)
 
     names = {"run": runs, "panel": config.labels, "label": config.labels}
-    # the summary columns go along where any line has a summary
-    summary = [c for c in data.SUMMARY if not series.is_empty() and series.get_column(c).is_not_null().any()]
 
     if series.is_empty():
         return ",".join((*names, "date", "value")) + "\n"
 
+    # the summary columns go along where any line has a summary
+    summary = [c for c in data.SUMMARY if series.get_column(c).is_not_null().any()]
     named = [pl.col(k).replace_strict(v, default=pl.col(k)).cast(pl.String) for k, v in names.items()]
 
     return series.sort("layer").with_columns(named).select(*names, "date", "value", *summary).write_csv()

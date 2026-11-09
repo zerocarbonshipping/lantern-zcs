@@ -14,7 +14,8 @@ from pathlib import Path
 from lantern import export
 from lantern.config import ConfigError
 from lantern.data import ResultsFileError
-from lantern.server import Session, make_server
+from lantern.server import make_server
+from lantern.session import Session
 
 PORT = 8050
 PLOTS = Path("plots")
@@ -58,7 +59,6 @@ def main() -> int:
             return 0
 
         session = Session(args.paths)
-        session.refresh()
 
         if args.list:
             sys.stdout.write(export.listing(session))

@@ -13,8 +13,8 @@ results file; Lantern opens one or many of them, prepares the plots that
 Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
-It is a small Python package, about 1 200 lines, with a static page of plain
-JavaScript and no build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
+It is a small Python package with a static page of plain JavaScript and no
+build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
 
 ## Install
 
@@ -93,10 +93,9 @@ about looks, apart from the overrides; `labels.yaml` says what the series are
 called and in which order and colour name they come; `theme.yaml` says what a
 colour name is.
 
-`config.load_config` validates all three at start and on Refresh. It stops
-with the file and line when an unquoted value reads as another type, such as
-`no`, `on` or `2030`, and with the plot's id on an unknown key, `total`
-together with `split_by`, a bad `y_axis` or malformed `variants`.
+Lantern checks all three at start and on Refresh and stops at a mistake with
+the file and line, the plot or the label; the
+[rules of thumb](PLOTS.md#rules-of-thumb) list what it checks.
 
 ## Development
 
@@ -106,32 +105,23 @@ make lint          # ruff check lantern; reuse lint
 lantern PATH       # look at the plots a change touches
 ```
 
-There is no test suite; CI runs ruff, REUSE, builds the wheel and loads the
-repository's catalogue with it. Before a pull request, lint, open results files
-and check the plots the change touches, and say in the description how the
-rendered plots or exported files differ. Changes to the catalogue or the
-labels go in `plots.yaml` in the repository root and `lantern/labels.yaml`
-with their headers and
-`PLOTS.md` updated; user-visible changes get a line in
-[`CHANGELOG.md`](CHANGELOG.md).
-
-A quick check of the loading pipeline without a browser:
+There is no test suite; CI lints, checks REUSE, builds the wheel and loads the
+repository's catalogue with it. A quick check of the loading pipeline without a
+browser:
 
 ```python
+from pathlib import Path
+
 from lantern import results
 from lantern.config import load_config
 
-loaded = results.load("my_deck.parquet", "my_deck", load_config().plots)
+loaded = results.load(Path("my_deck.parquet"), "my_deck", load_config().plots)
 print(loaded.runs, sorted(loaded.plots))
 print(loaded.plots["main_fuel_consumed"].head())
 ```
 
-Pull requests target `dev`; `main` holds releases, which the workflows in
-[`.github/workflows`](.github/workflows) publish to PyPI. See
-[`CONTRIBUTING.md`](CONTRIBUTING.md) for the process and
-[`CODESTYLE.md`](CODESTYLE.md) for the style: small, no speculative options,
-one-line docstrings, guard clauses, specific exceptions with the offending
-value.
+[`CONTRIBUTING.md`](CONTRIBUTING.md) has the pull request process and
+[`CODESTYLE.md`](CODESTYLE.md) the style.
 
 ## Disclaimer
 

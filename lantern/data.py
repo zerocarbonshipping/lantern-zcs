@@ -40,7 +40,7 @@ _YEAR = 365.25  # days, the calendar year Navigate counts steps in
 _VALUE = pl.col("value")
 
 
-class ResultsFileError(ValueError):
+class ResultsFileError(Exception):
     """A file that is not a readable Navigate results file."""
 
 
@@ -73,22 +73,18 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
     are listed under the runs they summarise, not as runs."""
     try:
         meta = json.loads(pl.read_parquet_metadata(_source(source))["navigate"])
-        schema = pl.read_parquet_schema(_source(source))
+        scan = pl.scan_parquet(_source(source))
+        schema = scan.collect_schema()
         missing = [column for column in COLUMNS if column not in schema]
 
         if missing:
             raise ResultsFileError(f"'{name}' lacks the columns {', '.join(missing)}")
 
-        scan = pl.scan_parquet(_source(source))
         compiled = "run" in schema
         runs = _runs(scan, name) if compiled else [name]
         summaries = _summaries(meta, name)
         runs = [run for run in runs if run not in {r for summary in summaries.values() for r in summary.values()}]
         dates = scan.select(pl.col("date").unique()).collect(engine="streaming").sort("date")
-
-    # a ResultsFileError is a ValueError, so it passes before the others are wrapped as one
-    except ResultsFileError:
-        raise
 
     except (KeyError, ValueError, pl.exceptions.PolarsError) as e:
         raise ResultsFileError(f"'{name}' is not a Navigate results file") from e
@@ -104,12 +100,18 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
 
 
 def _source(source: Path | bytes) -> Path | io.BytesIO:
+    """A file's path, or its content as a file to read."""
     return io.BytesIO(source) if isinstance(source, bytes) else source
+
+
+def run_id(name: str, compiled: bool) -> pl.Expr:
+    """The run column of a file's rows: the file's name, or '<file>/<run>' in a compiled file."""
+    return (pl.lit(f"{name}/") + pl.col("run") if compiled else pl.lit(name)).alias("run")
 
 
 def _runs(scan: pl.LazyFrame, name: str) -> list[str]:
     """The runs of a compiled file, named '<file>/<run>', in name order."""
-    runs = scan.select(run=pl.lit(f"{name}/") + pl.col("run")).unique().collect(engine="streaming")
+    runs = scan.select(run_id(name, compiled=True)).unique().collect(engine="streaming")
 
     return runs.get_column("run").sort().to_list()
 
