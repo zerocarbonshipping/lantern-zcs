@@ -25,6 +25,8 @@ Navigate writes.
   plots, and can list a stack also as lines, a panel per series. The packaged
   `labels.yaml` and `theme.yaml` name, order and colour the series, and
   `plots.yaml` can override their entries. See `PLOTS.md`.
+- `per: kind.attribute` divides a plot by another series of the run, such as
+  expenses per cargo-mile.
 - Compiled files of Horizon studies: a run per scenario, drawn with the
   median and band of its samples where the file names summary runs.
 - Ctrl-click compares runs, overlaid in a colour each, or in a column of

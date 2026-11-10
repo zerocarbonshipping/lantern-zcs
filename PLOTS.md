@@ -72,7 +72,7 @@ different ways, such as a value and its limit, lists its layers:
 | Key | Values | Meaning |
 |---|---|---|
 | `title` | text | heading of the plot. Required. |
-| `unit` | text | y-axis unit. Default: the file's unit of the first series. Give it when `scale`, `cumulative` or `per_gj` changes the unit. |
+| `unit` | text | y-axis unit. Default: the file's unit of the first series. Give it when `scale`, `cumulative`, `per_gj` or `per` changes the unit. |
 | `panels` | `node`, `attribute`, `key1`, `key2` | one panel per value of this column, titled by its label |
 | `select_view` | `node`, `attribute`, `key1`, `key2` | one view per value of this column, chosen in the select of the toolbar; the plot shows one at a time |
 | `y_axis` | `zero` (default), `fit` | whether the y axis starts at zero or fits the data; `fit` for values around zero or a narrow range |
@@ -94,11 +94,25 @@ A plot of one panel and one view leaves `panels` and `select_view` out.
 | `line` | `dash`, `dot`, `dashdot` | dashed line, for a target, limit or bound; default solid |
 | `cumulative` | `true` | sum a rate over the time steps up to each date, as Navigate's CUMULATIVE report does; set `unit` |
 | `per_gj` | `true` | divide a per-ton value by the heating value of its fuel, GJ/t: the fuel in `key1`, or a plant's own fuel; set `unit` |
+| `per` | `kind.attribute` | divide by that series of the run at each date, such as `fleet.cargo_miles` for a cost per cargo-mile. See [Per](#per). Excludes `cumulative`; set `unit`. |
 
 Within a layer, the rows that share a label (and panel and view) are summed to
 one value per date, so `series: fleet.newbuilds` with `split_by: key1` gives
 one line per fuel type, summed over the fleets. A date where no row has a value
 is left out and the line breaks there.
+
+### Per
+
+`per` divides each line by the sum of the other series at the same date, so
+`global.expenses` per `fleet.cargo_miles` is the expenses per cargo-mile of
+all fleets. Where the lines, panels or views are split by `node`, and the
+series are of the divisor's kind, each node is divided by its own: with
+`panels: node`, `fleet.expenses` per `fleet.cargo_miles` is a fleet's cost per
+cargo-mile. Split by `key1` or `key2`, the same holds for a key the divisor
+has. Every line split otherwise shares the divisor, so a stack adds up to the
+total per the divisor. A date the divisor has no value for, or zero, is left
+out. In a Horizon study the median and band are each divided by the divisor in
+that summary run, not the median of the ratio over the samples.
 
 ## Labels
 
@@ -239,4 +253,18 @@ A cost in USD/GJ from a per-ton price, one port at a time:
     select_view: node
     per_gj: true
     series: port.bunker_price
+```
+
+What the ships paid per tonne-kilometre, of a fleet whose cargo is in tonnes
+and its miles nautical, 1/1.852 (km per nautical mile) times 1000:
+
+```yaml
+  expenses_per_work:
+    title: What the ships paid per transport work
+    unit: USD per 1000 t-km
+    draw: stack
+    split_by: attribute
+    per: fleet.cargo_miles
+    scale: 539.96
+    series: [global.vessel_expenses, global.total_fuel_expenses, global.levy_expenses]
 ```

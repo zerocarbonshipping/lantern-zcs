@@ -51,6 +51,7 @@ class Layer:
     line: str | None = None
     cumulative: bool = False
     per_gj: bool = False
+    per: tuple[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -294,6 +295,13 @@ def _layer(plot_id: str, raw: dict) -> Layer:
     series = values["series"]
     values["series"] = tuple(_series(plot_id, s) for s in ([series] if isinstance(series, str) else series))
 
+    if "per" in values:
+        # a running total of a ratio means nothing
+        if values.get("cumulative"):
+            raise ConfigError(f"a layer of plot '{plot_id}' has both cumulative and per")
+
+        values["per"] = _series(plot_id, values["per"])
+
     if total:
         values["split_by"] = None
 
@@ -302,7 +310,7 @@ def _layer(plot_id: str, raw: dict) -> Layer:
 
 def _series(plot_id: str, series: str) -> tuple[str, str]:
     """A series "kind.attribute" as (kind, attribute)."""
-    kind, _, attribute = series.partition(".")
+    kind, _, attribute = series.partition(".") if isinstance(series, str) else ("", "", "")
 
     if not kind or not attribute:
         raise ConfigError(f"plot '{plot_id}': series '{series}' is not 'kind.attribute'")

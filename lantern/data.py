@@ -153,8 +153,8 @@ class Run:
 
 
 def read_run(file: ResultsFile, run: str, plots: tuple[Plot, ...]) -> Run:
-    """Read the rows of a run of every series the plots name, in one scan of the file."""
-    series = sorted({s for plot in plots for layer in plot.layers for s in layer.series})
+    """Read the rows of a run of every series the plots name, and divide by, in one scan of the file."""
+    series = sorted({s for plot in plots for layer in plot.layers for s in (*layer.series, layer.per) if s})
     rows = file.scan_run(run).filter(_wanted(series))
     # a value that is not finite, such as an unbounded constraint or NaN, cannot be drawn, so it is missing; a file
     # holds its values as 32- or 64-bit floats, and as 64-bit the lines of several files concatenate
@@ -221,6 +221,9 @@ def _lines(index: int, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
         rows = rows.with_columns(heating_value=_heating_value(run.file)).filter(pl.col("heating_value").is_not_null())
         rows = rows.with_columns(value=_VALUE / pl.col("heating_value"))
 
+    if layer.per:
+        rows = _per(rows, layer, plot, run)
+
     if plot.panels == "label":
         panel = _label(layer)
 
@@ -247,6 +250,26 @@ def _accumulate(values: pl.DataFrame, steps: pl.DataFrame) -> pl.DataFrame:
     return values.join(steps, on="date").sort("date").select(
         *_POINT, value=(_VALUE.fill_null(0.0) * pl.col("step")).cum_sum().over(*LINE)
     )
+
+
+def _per(rows: pl.DataFrame, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
+    """The rows divided by the layer's per series at their date, summed over all its rows but for the columns the
+    lines, panels or views are split by: node by node within its own kind, and key by key where it has the key.
+
+    The divisor of every row of a line is then the same, so a line is the ratio of the sums, and the lines of a stack
+    split otherwise add up to the total's. A row without a divisor at its date, or with zero, is left out.
+    """
+    kind, _ = layer.per
+    divisor = run.rows.get(layer.per, run.empty)
+    split = {plot.panels, plot.select_view, layer.split_by}
+    on = [
+        column for column in ("node", "key1", "key2") if column in split and (
+            all(k == kind for k, _ in layer.series) if column == "node" else divisor.get_column(column).count() > 0
+        )
+    ]
+    divisor = divisor.group_by("date", *on).agg(per=_VALUE.sum()).filter(pl.col("per") != 0)
+
+    return rows.join(divisor, on=["date", *on]).with_columns(value=_VALUE / pl.col("per"))
 
 
 def _heating_value(file: ResultsFile) -> pl.Expr:
