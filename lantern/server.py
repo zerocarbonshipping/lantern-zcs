@@ -24,6 +24,7 @@ STATIC = files("lantern").joinpath("static")
 ASSETS = {
     "/": ("index.html", "text/html"),
     "/app.js": ("app.js", "text/javascript"),
+    "/buttons.js": ("buttons.js", "text/javascript"),
     "/app.css": ("app.css", "text/css"),
     "/logo.svg": ("logo.svg", "image/svg+xml"),
 }

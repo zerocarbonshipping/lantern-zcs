@@ -416,7 +416,6 @@ port:
         line: dash
 
 regulation:
-
   unit_trading:
     title: Compliance units
     select_view: node

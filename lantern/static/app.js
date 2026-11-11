@@ -181,27 +181,61 @@ async function show(id, view, panel = null) {
 
   // plotly fills the space below the toolbar; a taller panel grid keeps its own height and scrolls
   $("figure").style.minHeight = `${figure.layout.height}px`;
-  Object.assign(figure.layout, size());
-  // a redraw of the same view, as after a file is added or removed, keeps the zoom
-  figure.layout.uirevision = JSON.stringify([id, runs, view, panel]);
-  // the modebar gets a second camera that downloads the plot as SVG, next to the PNG one, and a disk that downloads
-  // the drawn lines as CSV
-  const svg = {
-    name: "Download plot as SVG", icon: Plotly.Icons.camera,
-    click: (gd) => Plotly.downloadImage(gd, { format: "svg", filename: id }),
-  };
-  const csv = {
-    name: "Download data as CSV", icon: Plotly.Icons.disk,
-    click: () => window.location.assign(`/api/plots/${encodeURIComponent(id)}.csv?${params}`),
-  };
+  Object.assign(figure.layout, size(), dark() ? darkLayout(figure.layout) : {});
+  // a redraw of the same view, as after a file is added or removed, keeps the zoom; syncing the y axes or not resets it
+  figure.layout.uirevision = JSON.stringify([id, runs, view, panel, syncedY]);
+  // the modebar's buttons are in buttons.js; they sync the y axes of the layout where asked
   const config = {
     displaylogo: false, toImageButtonOptions: { filename: id, scale: 2 },
-    // the downloads first, then the zoom tools; the selections and hover toggles are left out
-    modeBarButtons: [["toImage", svg, csv], ["zoom2d", "pan2d", "zoomIn2d", "zoomOut2d", "autoScale2d", "resetScale2d"]],
+    modeBarButtons: modebarButtons(id, params, figure.layout, () => show(id, view, panel)),
   };
   await Plotly.react($("figure"), figure.data, figure.layout, config);
   $("figure").removeAllListeners("plotly_click");
   if (!panel && panels.length > 1) $("figure").on("plotly_click", enlarge);
+}
+
+// the theme: bright, dark, or the system's, kept in this browser; the page's colours follow it in app.css
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+const dark = () => document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "bright" && systemDark.matches);
+
+function setTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+
+  try {
+    localStorage.setItem("lantern.theme", theme);
+  } catch {}
+
+  // the server draws on white; a figure is drawn again in the other theme, keeping its zoom
+  if (current && runs.length) show(current, $("view").value, $("panel").value || null);
+}
+
+// a colour of the page, resolved in the scheme shown: app.css keeps both in light-dark(), which only an element resolves
+function pageColor(name) {
+  const probe = document.body.appendChild(document.createElement("i"));
+  probe.style.color = `var(${name})`;
+  const color = getComputedStyle(probe).color;
+  probe.remove();
+  return color;
+}
+
+// a figure on the page's dark colours: the server's white template recoloured, its axes defaults for every axis; the
+// colours of the series stay
+function darkLayout(layout) {
+  const [fg, surface, line, muted] = ["--fg", "--surface", "--line", "--muted"].map(pageColor);
+  const base = layout.template.layout;
+  const axis = { gridcolor: line, linecolor: line, zerolinecolor: line };
+  const template = {
+    ...layout.template,
+    layout: {
+      ...base, paper_bgcolor: surface, plot_bgcolor: surface,
+      xaxis: { ...base.xaxis, ...axis }, yaxis: { ...base.yaxis, ...axis },
+      hoverlabel: { bgcolor: surface, bordercolor: line, font: { color: fg } },
+      modebar: { bgcolor: "rgba(0, 0, 0, 0)", color: muted, activecolor: fg },
+    },
+  };
+
+  // a font colour plots.yaml gives wins over the template's, so it is set on the figure
+  return { template, font: { ...layout.font, color: fg } };
 }
 
 // plotly measures its box on the first draw only, so every draw and resize passes the box's size
@@ -216,6 +250,11 @@ function enlarge(event) {
 }
 
 $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
+// the radio of the kept theme is checked, System's for none or an unknown one
+const themeRadio = $("theme").querySelector(`input[value="${document.documentElement.dataset.theme}"]`);
+(themeRadio || $("theme").querySelector('input[value="system"]')).checked = true;
+$("theme").onchange = (e) => setTheme(e.target.value);
+systemDark.onchange = () => setTheme($("theme").querySelector(":checked").value);
 $("view").onchange = (e) => show(current, e.target.value);
 $("panel").onchange = (e) => show(current, $("view").value, e.target.value || null);
 window.onkeydown = (e) => { if (e.key === "Escape" && $("panel").value) show(current, $("view").value); };

@@ -63,6 +63,7 @@ def api(url: str, method: str = "GET", body: bytes | None = None, headers: dict[
     [
         ("/", "text/html"),
         ("/app.js", "text/javascript"),
+        ("/buttons.js", "text/javascript"),
         ("/app.css", "text/css"),
         ("/logo.svg", "image/svg+xml"),
         ("/plotly.js", "text/javascript"),

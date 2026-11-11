@@ -11,8 +11,8 @@
 # the file. The labels key of plots.yaml overrides an entry by its label.
 
 fuel_types:
-  OIL:         {name: Oil, color: black_7}
-  LPG:         {name: LPG, color: black_5}
+  OIL:         {name: Oil, color: black_5}
+  LPG:         {name: LPG, color: black_4}
   METHANE:     {name: Methane, color: peach_5}
   METHANOL:    {name: Methanol, color: green_5}
   ETHANOL:     {name: Ethanol, color: peach_8}
@@ -21,8 +21,8 @@ fuel_types:
   ELECTRICITY: {name: Electricity, color: green_4}
 
 fuels:
-  fossil_fuel_oil:         {name: Fuel oil, color: black_7}
-  heavy_fuel_oil:          {name: HFO, color: black_7}
+  fossil_fuel_oil:         {name: Fuel oil, color: black_5}
+  heavy_fuel_oil:          {name: HFO, color: black_5}
   liquefied_petroleum_gas: {name: LPG, color: black_4}
   liquefied_natural_gas:   {name: LNG, color: black_1}
   ammonia_grey:            {name: Grey ammonia, color: black_1}
@@ -40,7 +40,7 @@ fuels:
   shore_power:             {name: Shore power, color: yellow_2}
 
 feedstocks:
-  crude_oil:                          {name: Crude oil, color: black_7}
+  crude_oil:                          {name: Crude oil, color: black_5}
   natural_gas:                        {name: Natural gas, color: black_4}
   methanol_grey:                      {name: Grey methanol, color: black_4}
   used_cooking_oil:                   {name: UCO, color: yellow_2}
@@ -83,8 +83,8 @@ energy_demand_types:
   HEAT:       {name: Heat, color: peach_4}
 
 emissions:
-  intensity_total_equivalent_wtw: {name: WTW, color: black_8}
-  total_equivalent_wtw:           {name: WTW, color: black_8}
+  intensity_total_equivalent_wtw: {name: WTW, color: black_5}
+  total_equivalent_wtw:           {name: WTW, color: black_5}
 
 energy_savings:
   energy_intensity_saving:             {name: Total, color: blue_5}
@@ -103,14 +103,14 @@ expenses_and_capital:
 
 fuel_and_feed_supply:
   bunker_mass:            {name: Bunkered, color: green_4}
-  bunker_supply_mass:     {name: Supply, color: black_8}
+  bunker_supply_mass:     {name: Supply, color: black_6}
   bunkering_limit_mass:   {name: Infrastructure, color: black_4}
   consumed_energy:        {name: Consumed, color: green_4}
-  feed_constraint:        {name: Constraint, color: black_8}
+  feed_constraint:        {name: Constraint, color: black_6}
   feed_mass:              {name: Consumed, color: green_4}
   fuel_type_capacity:     {name: Fleet capacity, color: peach_7}
   pilot_fuel_share:       Actual share
-  production_energy:      {name: Produced, color: black_8}
+  production_energy:      {name: Produced, color: black_6}
   production_type_energy: {name: Supply, color: blue_7}
 
 fleet:
@@ -129,21 +129,21 @@ producers_and_plants:
   development:         {name: Planned, color: green_4}
   instantaneous_cost:  {name: Instantaneous, color: blue_8}
   investment_cost:     {name: Investment, color: blue_5}
-  maximum_development: {name: Constraint, color: black_8}
+  maximum_development: {name: Constraint, color: black_6}
 
 regulations:
   adjusted_shared_threshold: {name: Adjusted threshold, color: peach_7}
   adjusted_vessel_threshold: {name: Adjusted threshold, color: peach_7}
   flexibility_cost:          {name: Flexible, color: green_4}
-  non_compliance_units:      {name: Non-compliance, color: black_8}
+  non_compliance_units:      {name: Non-compliance, color: black_6}
   remedial_cost:             {name: Remedial, color: peach_4}
-  shared_allowance:          {name: Threshold, color: black_8}
+  shared_allowance:          {name: Threshold, color: black_6}
   shared_compliance:         {name: Compliance, color: green_4}
-  shared_threshold:          {name: Threshold, color: black_8}
+  shared_threshold:          {name: Threshold, color: black_6}
   shared_units:              {name: Compliance, color: green_4}
   surplus_units:             {name: Surplus, color: green_4}
   vessel_compliance:         {name: Compliance, color: green_4}
-  vessel_threshold:          {name: Threshold, color: black_8}
+  vessel_threshold:          {name: Threshold, color: black_6}
 
 vessels:
   bulk_carrier_200k_dwt_ice_ammonia:  Bulk Carrier 200K DWT, ammonia ICE

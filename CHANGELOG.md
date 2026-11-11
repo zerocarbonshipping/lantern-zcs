@@ -16,11 +16,22 @@ describes it. The entries below are the changes since the rewrite was merged
 ### Added
 - `per: kind.attribute` divides a plot by another series of the run, such as
   expenses per cargo-mile. (#7)
+- A button in a figure's toolbar shares one y axis across its panels, so
+  they compare on one scale, and gives each its own again.
+- Theme buttons on the page: System, Bright or Dark, kept in the browser.
+  Dark recolours the page and the figures' background, text and grid; the
+  series keep their colours.
 - The repository's `plots.yaml` has WTW emissions by fuel and the trade of
   each fleet, and names the runs of Navigate's reference scenarios.
 
 ### Changed
 - Lantern requires Python 3.13 or newer, as Navigate does.
+- The oil labels, oil, fuel oil, HFO and crude oil, are lighter: `black_5`
+  in place of `black_7`; the LPG fuel type moves to `black_4`, as the LPG
+  fuel has.
+- The WTW emissions and intensity are `black_5` in place of `black_8`, as
+  oil is; supply, produced, constraints, non-compliance and thresholds
+  are `black_6` in place of `black_8`.
 - `--plot` writes interactive HTML pages instead of PNG; the `export` extra
   and kaleido are no longer needed.
 - A colour in `labels.yaml`, `customize_runs` or the theme's palette must be
