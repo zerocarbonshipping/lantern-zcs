@@ -4,7 +4,7 @@ Lantern is a local web app that plots the results of
 [Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
 open-source maritime transition model. Every Navigate run writes a Parquet
 results file; Lantern opens one or many of them, prepares the plots that
-[`plots.yaml`](plots.yaml) declares and serves them as interactive
+[`plots.yaml`](plot_configs/plots.yaml) declares and serves them as interactive
 Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
@@ -34,7 +34,7 @@ lantern --data study/                   # every row of the files as data.csv
 | Argument | Meaning |
 |---|---|
 | `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
-| `--plot ID[RUN,...][PANEL]` | no viewer: write one plot as an interactive HTML page, as the viewer first opens it: a plot with a view select in its first view. The page loads plotly.js from its CDN, so it needs a connection to open. `ID` alone writes it for each run, as `plots/<run>/<id>.html` in the current folder; `ID[RUN,...]` draws the runs together in one figure, as the viewer compares them, into `plots/<id>/<run>+<run>.html`. A second bracket names one panel, by the key `--list` prints or its display name, to draw alone, as the viewer enlarges it, with `_<panel>` added to the file name; `ID[][PANEL]` is that panel of each run. A run is named as in its file, `nzf_main` for `e2e/nzf_main`, or by its full id with `_` for `/` where two files have a run of that name. Repeat it for more; the paths written are printed. An unknown id or run is an error, a plot without data is named and skipped. Quote it where the shell expands `[]`, as zsh does. |
+| `--plot ID[RUN,...][PANEL]` | no viewer: write a plot as an interactive HTML page, see [Writing plots](#writing-plots) |
 | `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
 | `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder |
 | `-h`, `--help` | the arguments |
@@ -44,31 +44,30 @@ file that is not a results file, a bad YAML value, an unknown plot, run or
 panel, print `Error: ...` and exit with 1. The viewer listens on
 `127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
 
-### The page
+### Writing plots
 
-- **Runs** are listed in the right column, a plain file as one run and a
-  compiled file with its runs under it. Click selects a run; Ctrl-click
-  (Cmd-click on a Mac) adds or removes one, to compare. A selected run's
-  button takes its colour. A Horizon study's file lists a run per scenario,
-  the representative sample, and draws the 5th to 95th percentile over the
-  samples as a band behind each line and the median dashed; a stack shows
-  the representative alone, as percentiles do not add up.
-- **Plots** are listed by section on the left; a plot none of the selected
-  runs has data for is greyed out.
-- **Views and panels**: a plot with `select_view` shows one node, fuel or
-  attribute at a time, chosen in the toolbar. Clicking a panel of a
-  multi-panel plot enlarges it; the panel select or Escape goes back.
-- **Comparing**: lines of several runs share the panels, a colour per run.
-  Stacks, and plots whose series are told apart by colour, get a column of
-  panels per run with a shared y axis.
-- **Downloads**: the modebar has a camera for PNG, one for SVG and a disk for
-  the drawn lines as CSV, a row per run, panel, label and date.
-- **Files**: Add files, or drop them on the page, uploads them to the server;
-  × unloads one. Refresh reads `plots.yaml` again and reloads the paths
-  Lantern was started with from disk, so an edited catalogue or an overwritten
-  run shows without a restart. Files added on the page stay.
-- The column widths are draggable and kept in the browser. An offline badge
-  shows when the server is gone; a restarted server is picked up.
+`--plot` saves a plot as an HTML page in `plots/` in the current folder,
+looking as it does when the viewer first opens it.
+
+- `--plot ID` writes the plot once per run: `plots/<run>/<ID>.html`.
+- `--plot 'ID[RUN,RUN]'` draws those runs together in one figure, as the
+  viewer compares them: `plots/<ID>/<run>+<run>.html`. Name the runs as
+  `--list` prints them, e.g. `e2e/nzf_main`.
+- `--plot 'ID[RUN][PANEL]'` draws only that panel, enlarged, and adds
+  `_<PANEL>` to the file name. `ID[][PANEL]` does that for each run. Name the
+  panel by its key from `--list` or by its title.
+- A plot with a view select shows its first view.
+- In the file names, a run is called by its name within its file, `nzf_main`
+  for `e2e/nzf_main`. If two files have a run of that name, the full id is
+  used instead, with `_` for `/`.
+- Repeat `--plot` for more plots. Lantern prints the paths it wrote.
+- An unknown plot or run is an error. A plot without data is skipped, and
+  Lantern says which.
+- The page loads plotly.js from the internet, so opening it needs a
+  connection.
+- Quote the argument in shells that expand `[]`, such as zsh.
+
+
 
 ## Configuration
 
@@ -77,11 +76,16 @@ other two are part of the package.
 
 | File | Where | What it holds | Manual |
 |---|---|---|---|
-| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`plots.yaml`](plots.yaml) in its root | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`PLOTS.md`](PLOTS.md) |
+| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`plot_configs/plots.yaml`](plot_configs/plots.yaml) | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`plot_configs/README.md`](plot_configs/README.md) |
 | [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
 | [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
 
 Without a `plots.yaml` in either place Lantern stops and says so.
+
+A series in `plots.yaml` is `kind.attribute`, e.g. `fleet.newbuilds`. What
+can be plotted is what the results file holds: Navigate's reference manual
+lists every series in that form, with its unit and keys, under
+[Results file: Results](https://zerocarbonshipping.github.io/navigate-zcs/staging/reference_manual/results_file.html#results).
 
 The split is deliberate: `plots.yaml` says *what* is plotted and nothing
 about looks, apart from the overrides; `labels.yaml` says what the series are
@@ -90,33 +94,8 @@ colour name is.
 
 Lantern checks all three at start and on Refresh and stops at a mistake with
 the file and line, the plot or the label; the
-[rules of thumb](PLOTS.md#rules-of-thumb) list what it checks.
+[rules of thumb](plot_configs/README.md#rules-of-thumb) list what it checks.
 
-## Development
-
-```bash
-pip install -e '.[dev]'
-make lint          # ruff check lantern; reuse lint
-lantern PATH       # look at the plots a change touches
-```
-
-There is no test suite; CI lints, checks REUSE, builds the wheel and loads the
-repository's catalogue with it. A quick check of the loading pipeline without a
-browser:
-
-```python
-from pathlib import Path
-
-from lantern import results
-from lantern.config import load_config
-
-loaded = results.load(Path("my_deck.parquet"), "my_deck", load_config().plots)
-print(loaded.runs, sorted(loaded.plots))
-print(loaded.plots["main_fuel_consumed"].head())
-```
-
-[`CONTRIBUTING.md`](CONTRIBUTING.md) has the pull request process and
-[`CODESTYLE.md`](CODESTYLE.md) the style.
 
 ## Disclaimer
 

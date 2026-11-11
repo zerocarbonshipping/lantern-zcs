@@ -48,9 +48,9 @@ request.
   enforce the mechanical rules. No lint or type suppressions in code: no
   `noqa`, no `type: ignore`; fix the code, or change the rule for everyone in
   the configuration. Beyond that, match the file you are editing.
-- Update documentation when behavior changes: the README, `PLOTS.md` and the
-  headers of `plots.yaml`, `labels.yaml` and `theme.yaml` for user-facing
-  changes, docstrings for code changes.
+- Update documentation when behavior changes: the README,
+  `plot_configs/README.md` and the headers of `plots.yaml`, `labels.yaml` and
+  `theme.yaml` for user-facing changes, docstrings for code changes.
 
 ### Changelog
 

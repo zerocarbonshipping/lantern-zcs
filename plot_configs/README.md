@@ -3,9 +3,9 @@
 [`plots.yaml`](plots.yaml) lists every plot Lantern shows: which series of the
 results it draws, how, and in which panels. Lantern reads it from the folder it
 is started in, or, if there is none, from the home folder, so a study can carry
-its own catalogue over a general one; this repository's is in its root. Display names, colours and order
-of the series are in [`lantern/labels.yaml`](lantern/labels.yaml) and the
-colours in [`lantern/theme.yaml`](lantern/theme.yaml), both part of the
+its own catalogue over a general one; this repository's is in this folder. Display names, colours and order
+of the series are in [`lantern/labels.yaml`](../lantern/labels.yaml) and the
+colours in [`lantern/theme.yaml`](../lantern/theme.yaml), both part of the
 package; `plots.yaml` can override their entries, see
 [Labels and theme](#labels-and-theme). A change takes effect on the next start
 or Refresh.

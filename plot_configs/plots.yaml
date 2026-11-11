@@ -1,5 +1,5 @@
 # Lantern's plot catalogue, read from the folder Lantern is started in, else from
-# the home folder. PLOTS.md in the repository is the manual; the names, colours
+# the home folder. README.md next to it is the manual; the names, colours
 # and order of the labels are in the package's labels.yaml, the colours and the
 # font in its theme.yaml. Quote text YAML would read otherwise: "no", "2030".
 
