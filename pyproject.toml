@@ -14,7 +14,7 @@ maintainers = [
 ]
 description = "Browser viewer for Navigate results files: interactive Plotly plots of one or several runs"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 
@@ -49,7 +49,7 @@ lantern = "lantern.__main__:main"
 
 [tool.ruff]
 line-length = 128
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.format]
 docstring-code-format = true
@@ -106,7 +106,7 @@ required-imports = ["from __future__ import annotations"]
 testpaths = ["tests"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.13"
 files = ["lantern"]
 disallow_untyped_defs = true
 disallow_incomplete_defs = true

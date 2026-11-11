@@ -9,7 +9,7 @@ Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
 It is a small Python package with a static page of plain JavaScript and no
-build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
+build step: Python 3.13+, Polars, Plotly, PyYAML and tqdm.
 
 ![plot_example](banner.png)
 

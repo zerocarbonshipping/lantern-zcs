@@ -41,7 +41,7 @@ def load(source: Path | bytes, name: str, plots: tuple[Plot, ...]) -> Results:
 
     # the runs go in batches, each read in one scan and prepared in one query per plot; a batch's rows, with its summary
     # runs', stay in memory only while its plots are prepared, which bounds the memory a study of many runs takes
-    for batch in itertools.batched(file.runs, _BATCH):
+    for batch in itertools.batched(file.runs, _BATCH, strict=False):
         runs = data.read_runs(file, batch, plots)
 
         for plot in plots:

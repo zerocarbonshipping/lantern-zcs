@@ -13,7 +13,7 @@ Navigate repository; Lantern only covers plotting those files.
 ## Getting started
 
 1. Fork the repository and clone your fork.
-2. Install it with the dev tools into a Python 3.12+ environment, conda or
+2. Install it with the dev tools into a Python 3.13+ environment, conda or
    venv: `pip install -e ".[dev]"`.
 3. Create a branch from `dev` for your change.
 4. Verify your setup by running `ruff check lantern tests`,

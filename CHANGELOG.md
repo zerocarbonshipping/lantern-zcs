@@ -20,6 +20,7 @@ describes it. The entries below are the changes since the rewrite was merged
   each fleet, and names the runs of Navigate's reference scenarios.
 
 ### Changed
+- Lantern requires Python 3.13 or newer, as Navigate does.
 - `--plot` writes interactive HTML pages instead of PNG; the `export` extra
   and kaleido are no longer needed.
 - A colour in `labels.yaml`, `customize_runs` or the theme's palette must be
