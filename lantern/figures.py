@@ -252,9 +252,10 @@ def _wrap(title: str, width: int) -> str:
 
 
 def _shape(count: int) -> tuple[int, int]:
+    """Return the rows and columns of a grid of about square cells; no panels, as of runs without data, get one empty."""
     rows = max(1, round(math.sqrt(count)))
 
-    return rows, math.ceil(count / rows)
+    return rows, max(1, math.ceil(count / rows))
 
 
 def _rank(config: Config) -> Callable[[str], tuple[int, str]]:

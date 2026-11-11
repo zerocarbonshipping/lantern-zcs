@@ -11,24 +11,29 @@ and the raw rows as CSV without starting the viewer.
 It is a small Python package with a static page of plain JavaScript and no
 build step: Python 3.12+, Polars, Plotly, PyYAML and tqdm.
 
+![plot_example](banner.png)
+
 ## Install
 
 ```bash
-pip install lantern-zcs             # the package
-pip install -e '.[dev]'             # a checkout, with ruff and reuse
+pip install lantern-zcs
 ```
 
 ## Use
 
 ```bash
-navigate my_deck.nav -d ./assumptions   # writes my_deck.parquet
-lantern my_deck.parquet                 # opens the viewer on that run
-lantern study/ other.parquet            # every .parquet below study/, and the file
-lantern --list e2e.parquet              # the runs, and the ids of the plots with data
-lantern --plot fleet_speed e2e.parquet  # that plot of each run: plots/<run>/fleet_speed.html
-lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' e2e.parquet   # the two runs in one figure
-lantern --plot 'fleet_speed[][Ferry]' e2e.parquet   # one panel, of each run
-lantern --data study/                   # every row of the files as data.csv
+lantern my_run.parquet          # opens the viewer on that run
+lantern study/                  # every .parquet below study/
+lantern --data my_run.parquet   # Export plot data to .csv
+lantern --list my_run.parquet   # print the runs and ids of the plots with data
+lantern --plot 'fleet_speed' e2e.parquet  # generate the fleet speed plot .html
+
+# Example Custom Plot Exports
+lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' my_run.parquet   
+lantern my_run.parquet \
+    --plot 'main_emission_absolute' \
+    --plot 'main_fuel_consumed_stacked' \
+    --plot 'main_fuel_type_consumed[][METHANE]'
 ```
 
 | Argument | Meaning |
@@ -46,28 +51,23 @@ panel, print `Error: ...` and exit with 1. The viewer listens on
 
 ### Writing plots
 
-`--plot` saves a plot as an HTML page in `plots/` in the current folder,
-looking as it does when the viewer first opens it.
+`--plot` saves a plot as an HTML page in `plots/`, as the viewer first shows
+it (a plot with views in its first view). Repeat it for more plots; Lantern
+prints the paths it wrote.
 
-- `--plot ID` writes the plot once per run: `plots/<run>/<ID>.html`.
-- `--plot 'ID[RUN,RUN]'` draws those runs together in one figure, as the
-  viewer compares them: `plots/<ID>/<run>+<run>.html`. Name the runs as
-  `--list` prints them, e.g. `e2e/nzf_main`.
-- `--plot 'ID[RUN][PANEL]'` draws only that panel, enlarged, and adds
-  `_<PANEL>` to the file name. `ID[][PANEL]` does that for each run. Name the
-  panel by its key from `--list` or by its title.
-- A plot with a view select shows its first view.
-- In the file names, a run is called by its name within its file, `nzf_main`
-  for `e2e/nzf_main`. If two files have a run of that name, the full id is
-  used instead, with `_` for `/`.
-- Repeat `--plot` for more plots. Lantern prints the paths it wrote.
-- An unknown plot or run is an error. A plot without data is skipped, and
-  Lantern says which.
-- The page loads plotly.js from the internet, so opening it needs a
-  connection.
-- Quote the argument in shells that expand `[]`, such as zsh.
+- `--plot ID`: the plot of each run, `plots/<run>/<ID>.html`.
+- `--plot 'ID[RUN,RUN]'`: those runs together in one figure,
+  `plots/<ID>/<run>+<run>.html`. Name the runs as `--list` prints them, e.g.
+  `e2e/nzf_main`.
+- `--plot 'ID[RUN][PANEL]'`: only that panel, enlarged, with `_<PANEL>` added
+  to the file name; `ID[][PANEL]` for each run. Name the panel by its key from
+  `--list` or by its title.
 
-
+File names use a run's name within its file, `nzf_main`, or its full id with
+`_` for `/` where two files have a run of that name. An unknown plot or run is
+an error; a plot without data is skipped, and Lantern says which. The pages
+load plotly.js from the internet. Quote the bracket forms in shells that expand
+`[]`, such as zsh.
 
 ## Configuration
 

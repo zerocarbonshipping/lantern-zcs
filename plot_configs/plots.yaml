@@ -3,12 +3,13 @@
 # and order of the labels are in the package's labels.yaml, the colours and the
 # font in its theme.yaml. Quote text YAML would read otherwise: "no", "2030".
 
-# display names and colours of runs, by the run's name within its file
+# display names and colours of runs, by the run's name within its file: here the
+# reference scenarios in Navigate's simulations/scenarios
 customize_runs:
-  no_regulation:     {name: No regulation, color: black_5}
-  weak_regulation:   {name: Weak regulation, color: yellow_5}
-  mid_regulation:    {name: Mid regulation, color: blue_5}
-  strong_regulation: {name: Strong regulation, color: green_5}
+  business_as_usual:          {name: Business as usual, color: black_5}
+  basecase_no_regulation:     {name: No regulation, color: yellow_5}
+  basecase_mid_regulation:    {name: Mid regulation, color: blue_5}
+  basecase_strong_regulation: {name: Strong regulation, color: green_5}
 
 # entries of labels.yaml to override or add, by label
 labels: {}
@@ -31,6 +32,13 @@ main:
     title: WTW emission intensity
     total: true
     series: global.intensity_total_equivalent_wtw
+
+  # summed over the gases
+  emission_by_fuel:
+    title: WTW emissions by fuel
+    variants: [lines, stack]
+    draw: stack
+    series: global.equivalent_wtw
 
   fuel_consumed:
     title: Fuel consumed
@@ -96,10 +104,10 @@ main:
     cumulative: true
     series: global.fuel_converted_power
 
-  # the feeds include the processes of the supply chain, not only the feedstocks
+  # the feeds include the processes of the supply chain, not only the feedstocks: some forty, so one at a time
   feedstock_consumption:
     title: Feed consumption
-    panels: key1
+    select_view: key1
     layers:
       - series: global.feed_mass
         total: true
@@ -207,6 +215,8 @@ engine:
     scale: 100
     series: global.pilot_fuel_share
 
+# a fleet, vessel or plant at a time where a panel holds several lines; the emissions and trade keep a panel per fleet,
+# a line each, so runs share them
 fleet:
   emission_absolute:
     title: WTW emissions
@@ -220,9 +230,15 @@ fleet:
     total: true
     series: fleet.intensity_total_equivalent_wtw
 
+  trade:
+    title: Trade
+    panels: node
+    total: true
+    series: fleet.trade
+
   fuel_consumed:
     title: Fuel consumed
-    panels: node
+    select_view: node
     variants: [lines, stack]
     draw: stack
     label: shore_power
@@ -232,7 +248,7 @@ fleet:
 
   evolution:
     title: Vessels
-    panels: node
+    select_view: node
     variants: [lines, stack]
     draw: stack
     series: fleet.existing_vessels
@@ -240,7 +256,7 @@ fleet:
   changes:
     title: Newbuilds and scrapping
     unit: vessels/year
-    panels: node
+    select_view: node
     y_axis: fit
     variants: [lines, stack]
     layers:
@@ -253,7 +269,7 @@ fleet:
   conversions_cumulative:
     title: Cumulative conversions
     unit: vessels
-    panels: node
+    select_view: node
     y_axis: fit
     variants: [lines, stack]
     layers:
@@ -269,7 +285,7 @@ fleet:
   energy_saving:
     title: Energy saving
     unit: "%"
-    panels: node
+    select_view: node
     y_axis: fit
     split_by: attribute
     scale: 100
@@ -281,7 +297,7 @@ fleet:
   # a fleet without speed management has only its reference speed
   speed:
     title: Fleet speed
-    panels: node
+    select_view: node
     layers:
       - series:
           - fleet.minimum_speed
@@ -303,7 +319,7 @@ fleet:
 
   speed_per_vessel:
     title: Vessel speed
-    panels: node
+    select_view: node
     layers:
       - series:
           - vessel.minimum_speed
@@ -316,7 +332,7 @@ fleet:
   investment_metric:
     title: Freight rates
     unit: USD/1000 cargo-miles
-    panels: node
+    select_view: node
     layers:
       - series: vessel.investment_freight_rate
         total: true
@@ -365,7 +381,7 @@ plant:
   production_cost:
     title: Production cost
     unit: USD/GJ
-    panels: node
+    select_view: node
     y_axis: fit
     layers:
       - series: plant.investment_cost
@@ -400,32 +416,6 @@ port:
         line: dash
 
 regulation:
-  # left out for now: a panel per vessel makes it by far the slowest plot to prepare
-#   # one panel per vessel, and one without a title for the shared compliance
-#   compliance:
-#     title: Compliance
-#     unit: regulation measure
-#     panels: key1
-#     select_view: node
-#     layers:
-#       - series: regulation.vessel_compliance
-#         draw: area
-#         total: true
-#       - series: regulation.vessel_threshold
-#         total: true
-#         line: dash
-#       - series: regulation.adjusted_vessel_threshold
-#         total: true
-#         line: dot
-#       - series: regulation.shared_compliance
-#         draw: area
-#         total: true
-#       - series: regulation.shared_threshold
-#         total: true
-#         line: dash
-#       - series: regulation.adjusted_shared_threshold
-#         total: true
-#         line: dot
 
   unit_trading:
     title: Compliance units

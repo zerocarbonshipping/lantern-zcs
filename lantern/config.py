@@ -116,6 +116,10 @@ def load_config() -> Config:
     swatches = theme["swatches"]
     entries = _labels(plots.pop(_LABELS, None) or {})
 
+    for section, section_entries in plots.items():
+        if not isinstance(section_entries, dict):
+            raise ConfigError(f"plots.yaml: section '{section}' must map plot keys to plots")
+
     return Config(
         plots=tuple(
             plot
@@ -258,8 +262,11 @@ def _check_text(node: yaml.Node, name: str, key: str | None = None) -> None:
             _check_text(value, name, item_key.value)
 
 
-def _plots(plot_id: str, section: str, raw: dict[str, Any]) -> list[Plot]:
+def _plots(plot_id: str, section: str, raw: object) -> list[Plot]:
     """Return an entry's plots: the stack as written, or its variants in order, lines with a panel per label and the stack."""
+    if not isinstance(raw, dict):
+        raise ConfigError(f"plot '{plot_id}' must map keys to values")
+
     plot = _plot(plot_id, section, raw)
     variants = raw.get("variants")
 
@@ -287,7 +294,13 @@ def _plot(plot_id: str, section: str, raw: dict[str, Any]) -> Plot:
     if unknown:
         raise ConfigError(f"plot '{plot_id}' has unknown keys: {', '.join(sorted(unknown))}")
 
+    if "title" not in raw:
+        raise ConfigError(f"plot '{plot_id}' has no title")
+
     layers = raw.get("layers") or [{k: v for k, v in raw.items() if k in layer_keys}]
+
+    if not isinstance(layers, list) or not all(isinstance(layer, dict) for layer in layers):
+        raise ConfigError(f"plot '{plot_id}': layers must list layers, each mapping keys to values")
     y_axis = raw.get("y_axis", "zero")
 
     if y_axis not in _AXES:
@@ -315,6 +328,9 @@ def _layer(plot_id: str, raw: dict[str, Any]) -> Layer:
 
     if total and "split_by" in values:
         raise ConfigError(f"a layer of plot '{plot_id}' has both total and split_by")
+
+    if "series" not in values:
+        raise ConfigError(f"a layer of plot '{plot_id}' has no series")
 
     series = values["series"]
     values["series"] = tuple(_series(plot_id, s) for s in ([series] if isinstance(series, str) else series))

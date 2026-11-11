@@ -1,0 +1,49 @@
+name: Navigate
+
+# Runs the tests on a results file that Navigate's dev branch writes now, in place of the committed fixture, so a change
+# in Navigate that Lantern reads or plots differently shows before a user meets it.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+    inputs:
+      navigate_ref:
+        description: Navigate branch, tag or commit
+        default: dev
+
+jobs:
+  navigate:
+    name: Test on Navigate ${{ inputs.navigate_ref || 'dev' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # a scheduled run checks out main otherwise
+      - name: Checkout Lantern
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+
+      - name: Checkout Navigate
+        uses: actions/checkout@v6
+        with:
+          repository: zerocarbonshipping/navigate-zcs
+          ref: ${{ inputs.navigate_ref || 'dev' }}
+          path: navigate-zcs
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install Navigate and Lantern
+        run: pip install ./navigate-zcs ".[dev]"
+
+      - name: Write the fixture with Navigate
+        run: |
+          navigate navigate-zcs/tests/end_to_end/simulations/attribute_coverage/attribute_coverage.nav \
+            -d navigate-zcs/assumptions --output-dir navigate-output
+          cp navigate-output/attribute_coverage.parquet tests/fixtures/attribute_coverage.parquet
+
+      - name: Run tests
+        run: pytest

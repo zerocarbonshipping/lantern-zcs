@@ -16,6 +16,8 @@ describes it. The entries below are the changes since the rewrite was merged
 ### Added
 - `per: kind.attribute` divides a plot by another series of the run, such as
   expenses per cargo-mile. (#7)
+- The repository's `plots.yaml` has WTW emissions by fuel and the trade of
+  each fleet, and names the runs of Navigate's reference scenarios.
 
 ### Changed
 - `--plot` writes interactive HTML pages instead of PNG; the `export` extra
@@ -24,7 +26,11 @@ describes it. The entries below are the changes since the rewrite was merged
   a colour name of the theme or a hex value, and a swatch a hex value;
   Lantern stops with an error where an unknown name used to fall back to the
   palette. (#6)
+- In the repository's `plots.yaml`, the fleet, vessel and plant plots of
+  several lines, and the feed consumption, show one fleet, vessel, plant or
+  feed at a time, chosen in the view select, instead of a panel each.
 
 ### Fixed
 - A `plots.yaml` that is not a mapping of sections, such as a list, stops
-  with an error instead of a traceback.
+  with an error instead of a traceback, as does a section, plot or layer
+  that is not a mapping, and a plot without a title or a series.

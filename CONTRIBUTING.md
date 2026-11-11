@@ -16,8 +16,8 @@ Navigate repository; Lantern only covers plotting those files.
 2. Install it with the dev tools into a Python 3.12+ environment, conda or
    venv: `pip install -e ".[dev]"`.
 3. Create a branch from `dev` for your change.
-4. Verify your setup by running `ruff check lantern`,
-   `ruff format --check lantern` and `mypy`.
+4. Verify your setup by running `ruff check lantern tests`,
+   `ruff format --check lantern tests`, `mypy` and `pytest`.
 
 ## What to contribute
 
@@ -75,11 +75,18 @@ changelog.
 
 ## Checking a change
 
-Lantern has no test suite. Before a pull request, run the checks under
-Getting started, then open Navigate results files with `lantern PATH` and
-look at the plots the change touches. A pull request that changes rendered
-plots or written HTML or CSV files explains the difference in its
-description.
+Before a pull request, run the checks under Getting started. The tests read
+`tests/fixtures/attribute_coverage.parquet`, the results file of Navigate's
+`attribute_coverage` deck, which touches every attribute: every plot of
+`plot_configs/plots.yaml` must have data in it, and draws in every view and
+panel, alone and with other runs. A new plot therefore needs a series
+Navigate writes. CI runs the same checks on the built wheel, and weekly on a
+file Navigate's `dev` branch writes.
+
+The tests do not look at the plots: open Navigate results files with
+`lantern PATH` and look at the plots the change touches. A pull request that
+changes rendered plots or written HTML or CSV files explains the difference
+in its description.
 
 ## Questions
 
