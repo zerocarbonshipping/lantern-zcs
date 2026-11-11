@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,9 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from lantern.config import Plot
+
+# runs read and prepared together; a query takes about as long for one run as for many
+_BATCH = 20
 
 
 @dataclass(frozen=True)
@@ -35,13 +39,13 @@ def load(source: Path | bytes, name: str, plots: tuple[Plot, ...]) -> Results:
     file = data.open_file(source, name)
     lines: dict[str, list[pl.DataFrame]] = {plot.id: [] for plot in plots}
 
-    # a run's rows, and its summary runs', stay in memory only while its plots are prepared
-    for run_name in file.runs:
-        run = data.read_run(file, run_name, plots)
-        summary = {column: data.read_run(file, other, plots) for column, other in file.summaries.get(run_name, {}).items()}
+    # the runs go in batches, each read in one scan and prepared in one query per plot; a batch's rows, with its summary
+    # runs', stay in memory only while its plots are prepared, which bounds the memory a study of many runs takes
+    for batch in itertools.batched(file.runs, _BATCH):
+        runs = data.read_runs(file, batch, plots)
 
         for plot in plots:
-            frame = data.prepare(plot, run, summary)
+            frame = data.prepare(plot, runs)
 
             if not frame.is_empty():
                 lines[plot.id].append(frame)

@@ -17,15 +17,16 @@ from typing import TYPE_CHECKING, Any
 import polars as pl
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Iterable, Sequence
     from pathlib import Path
 
     from lantern.config import Layer, Plot
 
 LABELS = ("kind", "node", "attribute", "key1", "key2")
 COLUMNS = (*LABELS, "date", "value")
-# a line of a prepared plot: its view ("" for a plot without views), panel, layer and label; it has a point per date
-LINE = ("view", "panel", "layer", "label")
+# a line of a prepared plot: its run, view ("" for a plot without views), panel, layer and label; it has a point per
+# date
+LINE = ("run", "view", "panel", "layer", "label")
 _POINT = (*LINE, "date")
 _TEXT = ("view", "panel", "label")
 # the columns of the summary of a run over the samples it represents, as a Horizon file's metadata names them
@@ -69,12 +70,14 @@ class ResultsFile:
     plant_fuel: dict[str, str]
     compiled: bool
 
-    def scan_run(self, run: str) -> pl.LazyFrame:
-        """Scan the rows of a run lazily: labels, date and value; the row groups of other runs are skipped."""
+    def scan_runs(self, runs: list[str]) -> pl.LazyFrame:
+        """Scan the rows of the runs lazily: run, labels, date and value; the row groups of other runs are skipped."""
         if not self.compiled:
-            return self.scan.select(*COLUMNS)
+            return self.scan.select(run_id(self.name, compiled=False), *COLUMNS)
 
-        return self.scan.filter(pl.col("run") == run.removeprefix(f"{self.name}/")).select(*COLUMNS)
+        names = [run.removeprefix(f"{self.name}/") for run in runs]
+
+        return self.scan.filter(pl.col("run").is_in(names)).select(run_id(self.name, compiled=True), *COLUMNS)
 
 
 def open_file(source: Path | bytes, name: str) -> ResultsFile:
@@ -161,61 +164,68 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
 
 
 @dataclass(frozen=True)
-class Run:
+class Runs:
     """
-    The rows of a run of each plotted series, (kind, attribute), in memory with text as categories.
+    The rows of some runs and of their summary runs, of each plotted series, (kind, attribute), in memory.
 
-    It also carries an empty frame of their columns and the run's file.
+    Text is held as categories. It also carries an empty frame of their columns, each run's summary runs by column and
+    the runs' file.
     """
 
-    name: str
     rows: dict[tuple[str, str], pl.DataFrame]
     empty: pl.DataFrame
+    summaries: dict[str, dict[str, str]]
     file: ResultsFile
 
 
-def read_run(file: ResultsFile, run: str, plots: tuple[Plot, ...]) -> Run:
-    """Read the rows of a run of every series the plots name, and divide by, in one scan of the file."""
+def read_runs(file: ResultsFile, runs: Sequence[str], plots: tuple[Plot, ...]) -> Runs:
+    """Read the rows of the runs and their summary runs, of every series the plots name or divide by, in one scan."""
+    summaries = {run: file.summaries.get(run, {}) for run in runs}
+    names = [*runs, *(other for summary in summaries.values() for other in summary.values())]
     series = sorted({s for plot in plots for layer in plot.layers for s in (*layer.series, layer.per) if s})
-    rows = file.scan_run(run).filter(_wanted(series))
+    rows = file.scan_runs(names).filter(_wanted(series))
     # a value that is not finite, such as an unbounded constraint or NaN, cannot be drawn, so it is missing; a file
     # holds its values as 32- or 64-bit floats, and as 64-bit the lines of several files concatenate
     rows = rows.with_columns(
-        pl.col(*LABELS).cast(pl.Categorical),
+        pl.col("run", *LABELS).cast(pl.Categorical),
         value=pl.when(_VALUE.is_finite()).then(_VALUE).cast(pl.Float64),
     ).collect(engine="streaming")
 
-    # split once, as filtering the run's rows for each layer would take longer than preparing it
-    return Run(run, rows.partition_by("kind", "attribute", as_dict=True), rows.clear(), file)
+    # split once, as filtering the rows for each layer would take longer than preparing it
+    return Runs(rows.partition_by("kind", "attribute", as_dict=True), rows.clear(), summaries, file)
 
 
-def prepare(plot: Plot, run: Run, summary: dict[str, Run] | None = None) -> pl.DataFrame:
+def prepare(plot: Plot, runs: Runs) -> pl.DataFrame:
     """
-    Resolve every layer of a plot of a run, in each of its views, into lines, the columns of LINES.
+    Resolve every layer of a plot of the runs, in each of its views, into lines, the columns of LINES.
 
     A value is the sum of the series that share a label, missing where none has one, and the median, low and high are
-    the values of the run's summary runs, missing without one.
+    the values of a run's summary runs, missing without one. All runs are resolved together, as a query takes about as
+    long for one run as for many.
     """
-    lines = _prepare(plot, run)
+    lines = _prepare(plot, runs)
+    summary_runs = [other for summary in runs.summaries.values() for other in summary.values()]
+
+    if not summary_runs:
+        return lines.with_columns([pl.lit(None, pl.Float64).alias(column) for column in SUMMARY])
+
+    # a summary run's line becomes a column of the line of the run it summarises
+    summarised = lines.filter(pl.col("run").is_in(summary_runs))
+    lines = lines.filter(~pl.col("run").is_in(summary_runs))
 
     for column in SUMMARY:
-        other = (summary or {}).get(column)
-
-        if other is None or lines.is_empty():
-            lines = lines.with_columns(pl.lit(None, pl.Float64).alias(column))
-            continue
-
-        values = _prepare(plot, other).select(*_POINT, pl.col("value").alias(column))
-        lines = lines.join(values, on=_POINT, how="left")
+        owners = {other: run for run, summary in runs.summaries.items() if (other := summary.get(column))}
+        values = summarised.filter(pl.col("run").is_in(list(owners))).with_columns(pl.col("run").replace_strict(owners))
+        values = values.select(*_POINT, pl.col("value").alias(column))
+        lines = lines.join(values, on=_POINT, how="left", maintain_order="left")
 
     return lines
 
 
-def _prepare(plot: Plot, run: Run) -> pl.DataFrame:
-    layers = [_lines(index, layer, plot, run) for index, layer in enumerate(plot.layers)]
-    lines = pl.concat(layers).with_columns(pl.col(*_TEXT).cast(pl.String)).sort(_POINT)
+def _prepare(plot: Plot, runs: Runs) -> pl.DataFrame:
+    layers = [_lines(index, layer, plot, runs) for index, layer in enumerate(plot.layers)]
 
-    return lines.select(pl.lit(run.name).alias("run"), pl.all())
+    return pl.concat(layers).with_columns(pl.col("run", *_TEXT).cast(pl.String)).sort(_POINT)
 
 
 def unit(plot: Plot, units: dict[str, str]) -> str:
@@ -228,27 +238,27 @@ def unit(plot: Plot, units: dict[str, str]) -> str:
     return units.get(attribute, "")
 
 
-def _select(run: Run, series: tuple[tuple[str, str], ...]) -> pl.DataFrame:
-    """Rows of a run of any of the series, each (kind, attribute) over every node of the kind."""
-    frames = [run.rows[s] for s in series if s in run.rows]
+def _select(runs: Runs, series: tuple[tuple[str, str], ...]) -> pl.DataFrame:
+    """Rows of the runs of any of the series, each (kind, attribute) over every node of the kind."""
+    frames = [runs.rows[s] for s in series if s in runs.rows]
 
-    return pl.concat(frames) if frames else run.empty
+    return pl.concat(frames) if frames else runs.empty
 
 
 def _wanted(series: Iterable[tuple[str, str]]) -> pl.Expr:
     return pl.any_horizontal([(pl.col("kind") == kind) & (pl.col("attribute") == attribute) for kind, attribute in series])
 
 
-def _lines(index: int, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
-    rows = _select(run, layer.series)
+def _lines(index: int, layer: Layer, plot: Plot, runs: Runs) -> pl.DataFrame:
+    rows = _select(runs, layer.series)
 
     if layer.per_gj:
         # a value whose fuel the file gives no heating value for cannot be converted
-        rows = rows.with_columns(heating_value=_heating_value(run.file)).filter(pl.col("heating_value").is_not_null())
+        rows = rows.with_columns(heating_value=_heating_value(runs.file)).filter(pl.col("heating_value").is_not_null())
         rows = rows.with_columns(value=_VALUE / pl.col("heating_value"))
 
     if layer.per:
-        rows = _per(rows, layer.per, layer, plot, run)
+        rows = _per(rows, layer.per, layer, plot, runs)
 
     view = pl.col(plot.select_view).fill_null("") if plot.select_view else pl.lit("")
     rows = rows.with_columns(label=_label(layer), panel=_panel(plot, layer), view=view, layer=pl.lit(index, pl.Int32))
@@ -259,7 +269,7 @@ def _lines(index: int, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
     # breaks there
     values = rows.group_by(*_POINT).agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
 
-    return _accumulate(values, run.file.steps) if layer.cumulative else values
+    return _accumulate(values, runs.file.steps) if layer.cumulative else values
 
 
 def _accumulate(values: pl.DataFrame, steps: pl.DataFrame) -> pl.DataFrame:
@@ -275,9 +285,9 @@ def _accumulate(values: pl.DataFrame, steps: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _per(rows: pl.DataFrame, per: tuple[str, str], layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
+def _per(rows: pl.DataFrame, per: tuple[str, str], layer: Layer, plot: Plot, runs: Runs) -> pl.DataFrame:
     """
-    Divide the rows by the layer's per series, (kind, attribute), at their date.
+    Divide the rows by the layer's per series, (kind, attribute), of their run at their date.
 
     The divisor is summed over all its rows but for the columns the lines, panels or views are split by: node by node
     within its own kind, and key by key where it has the key. The divisor of every row of a line is then the same, so a
@@ -285,7 +295,7 @@ def _per(rows: pl.DataFrame, per: tuple[str, str], layer: Layer, plot: Plot, run
     divisor at its date, or with zero, is left out.
     """
     kind, _ = per
-    divisor = run.rows.get(per, run.empty)
+    divisor = runs.rows.get(per, runs.empty)
     split = {plot.panels, plot.select_view, layer.split_by}
     on = [
         column
@@ -293,9 +303,9 @@ def _per(rows: pl.DataFrame, per: tuple[str, str], layer: Layer, plot: Plot, run
         if column in split
         and (all(k == kind for k, _ in layer.series) if column == "node" else divisor.get_column(column).count() > 0)
     ]
-    divisor = divisor.group_by("date", *on).agg(per=_VALUE.sum()).filter(pl.col("per") != 0)
+    divisor = divisor.group_by("run", "date", *on).agg(per=_VALUE.sum()).filter(pl.col("per") != 0)
 
-    return rows.join(divisor, on=["date", *on]).with_columns(value=_VALUE / pl.col("per"))
+    return rows.join(divisor, on=["run", "date", *on]).with_columns(value=_VALUE / pl.col("per"))
 
 
 def _heating_value(file: ResultsFile) -> pl.Expr:
