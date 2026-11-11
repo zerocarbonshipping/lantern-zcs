@@ -1,26 +1,26 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
+"""
+Open Navigate results files lazily and resolve plot specs into tidy lines.
 
-"""Open Navigate results files, single runs or compiled files of several runs, lazily and resolve plot specs into tidy
-lines.
-
-A file is never read whole: one scan of a run reads the rows of the plotted series only, with text as categories,
-and each plot reduces them to a line per label. A Horizon study's file holds, per scenario, the representative run
-and its summary over the samples as runs of their own, which its metadata names under summaries; those give the
-scenario's lines their median and band.
+A file holds a single run, or, compiled, several runs. It is never read whole: one scan of a run reads the rows of the
+plotted series only, with text as categories, and each plot reduces them to a line per label. A Horizon study's file
+holds, per scenario, the representative run and its summary over the samples as runs of their own, which its metadata
+names under summaries; those give the scenario's lines their median and band.
 """
 
 from __future__ import annotations
 
 import io
 import json
-from collections.abc import Iterable
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import polars as pl
 
-from lantern.config import Layer, Plot
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
+
+    from lantern.config import Layer, Plot
 
 LABELS = ("kind", "node", "attribute", "key1", "key2")
 COLUMNS = (*LABELS, "date", "value")
@@ -32,8 +32,14 @@ _TEXT = ("view", "panel", "label")
 SUMMARY = ("median", "low", "high")
 # the columns of prepared lines, as prepare() returns them: the value, and the summary where the run has one
 LINES = {
-    "run": pl.String, "view": pl.String, "panel": pl.String, "layer": pl.Int32, "label": pl.String, "date": pl.Date,
-    "value": pl.Float64, **{column: pl.Float64 for column in SUMMARY},
+    "run": pl.String,
+    "view": pl.String,
+    "panel": pl.String,
+    "layer": pl.Int32,
+    "label": pl.String,
+    "date": pl.Date,
+    "value": pl.Float64,
+    **dict.fromkeys(SUMMARY, pl.Float64),
 }
 _YEAR = 365.25  # days, the calendar year Navigate counts steps in
 
@@ -46,9 +52,12 @@ class ResultsFileError(Exception):
 
 @dataclass(frozen=True)
 class ResultsFile:
-    """An opened results file: its name, the unit of each attribute, its table, read lazily, its runs, each run's
-    summary runs by column, the length of each time step in years and the heating values, GJ/t, of its fuels and of
-    each plant's fuel."""
+    """
+    An opened results file, its table read lazily.
+
+    It carries its name, the unit of each attribute, its runs, each run's summary runs by column, the length of each
+    time step in years and the heating values, GJ/t, of its fuels and of each plant's fuel.
+    """
 
     name: str
     units: dict[str, str]
@@ -61,7 +70,7 @@ class ResultsFile:
     compiled: bool
 
     def scan_run(self, run: str) -> pl.LazyFrame:
-        """The rows of a run, read lazily: labels, date and value; the row groups of other runs are skipped."""
+        """Scan the rows of a run lazily: labels, date and value; the row groups of other runs are skipped."""
         if not self.compiled:
             return self.scan.select(*COLUMNS)
 
@@ -69,8 +78,11 @@ class ResultsFile:
 
 
 def open_file(source: Path | bytes, name: str) -> ResultsFile:
-    """Open a results file: one run, or, compiled, several runs named '<file>/<run>'; a Horizon file's summary runs
-    are listed under the runs they summarise, not as runs."""
+    """
+    Open a results file: one run, or, compiled, several runs named '<file>/<run>'.
+
+    A Horizon file's summary runs are listed under the runs they summarise, not as runs.
+    """
     try:
         meta = json.loads(pl.read_parquet_metadata(_source(source))["navigate"])
         scan = pl.scan_parquet(_source(source))
@@ -94,29 +106,36 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
     constants = meta.get("constants", {})
 
     return ResultsFile(
-        name, meta.get("units", {}), scan, runs, summaries, steps, constants.get("lower_heating_value", {}),
-        meta.get("plant_fuel", {}), compiled,
+        name,
+        meta.get("units", {}),
+        scan,
+        runs,
+        summaries,
+        steps,
+        constants.get("lower_heating_value", {}),
+        meta.get("plant_fuel", {}),
+        compiled,
     )
 
 
 def _source(source: Path | bytes) -> Path | io.BytesIO:
-    """A file's path, or its content as a file to read."""
+    """Return a file's path, or its content as a file to read."""
     return io.BytesIO(source) if isinstance(source, bytes) else source
 
 
 def run_id(name: str, compiled: bool) -> pl.Expr:
-    """The run column of a file's rows: the file's name, or '<file>/<run>' in a compiled file."""
+    """Return the run column of a file's rows: the file's name, or '<file>/<run>' in a compiled file."""
     return (pl.lit(f"{name}/") + pl.col("run") if compiled else pl.lit(name)).alias("run")
 
 
 def _runs(scan: pl.LazyFrame, name: str) -> list[str]:
-    """The runs of a compiled file, named '<file>/<run>', in name order."""
+    """List the runs of a compiled file, named '<file>/<run>', in name order."""
     runs = scan.select(run_id(name, compiled=True)).unique().collect(engine="streaming")
 
     return runs.get_column("run").sort().to_list()
 
 
-def _summaries(meta: dict, name: str) -> dict[str, dict[str, str]]:
+def _summaries(meta: dict[str, Any], name: str) -> dict[str, dict[str, str]]:
     """Each run's summary runs, by column, as a Horizon file's metadata names them, all named '<file>/<run>'."""
     return {
         f"{name}/{run}": {column: f"{name}/{other}" for column, other in summary.items()}
@@ -126,7 +145,7 @@ def _summaries(meta: dict, name: str) -> dict[str, dict[str, str]]:
 
 def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
     """Results files with names: a file is named after itself, a file in a folder by its path in the folder."""
-    found = []
+    found: list[tuple[Path, str]] = []
 
     for path in paths:
         if path.is_dir():
@@ -143,8 +162,11 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
 
 @dataclass(frozen=True)
 class Run:
-    """The rows of a run of each plotted series, (kind, attribute), in memory with text as categories, an empty frame
-    of their columns and the run's file."""
+    """
+    The rows of a run of each plotted series, (kind, attribute), in memory with text as categories.
+
+    It also carries an empty frame of their columns and the run's file.
+    """
 
     name: str
     rows: dict[tuple[str, str], pl.DataFrame]
@@ -159,7 +181,8 @@ def read_run(file: ResultsFile, run: str, plots: tuple[Plot, ...]) -> Run:
     # a value that is not finite, such as an unbounded constraint or NaN, cannot be drawn, so it is missing; a file
     # holds its values as 32- or 64-bit floats, and as 64-bit the lines of several files concatenate
     rows = rows.with_columns(
-        pl.col(*LABELS).cast(pl.Categorical), value=pl.when(_VALUE.is_finite()).then(_VALUE).cast(pl.Float64),
+        pl.col(*LABELS).cast(pl.Categorical),
+        value=pl.when(_VALUE.is_finite()).then(_VALUE).cast(pl.Float64),
     ).collect(engine="streaming")
 
     # split once, as filtering the run's rows for each layer would take longer than preparing it
@@ -167,9 +190,12 @@ def read_run(file: ResultsFile, run: str, plots: tuple[Plot, ...]) -> Run:
 
 
 def prepare(plot: Plot, run: Run, summary: dict[str, Run] | None = None) -> pl.DataFrame:
-    """Resolve every layer of a plot of a run, in each of its views, into lines, the columns of LINES: a value is the
-    sum of the series that share a label, missing where none has one, and the median, low and high are the values of
-    the run's summary runs, missing without one."""
+    """
+    Resolve every layer of a plot of a run, in each of its views, into lines, the columns of LINES.
+
+    A value is the sum of the series that share a label, missing where none has one, and the median, low and high are
+    the values of the run's summary runs, missing without one.
+    """
     lines = _prepare(plot, run)
 
     for column in SUMMARY:
@@ -193,7 +219,7 @@ def _prepare(plot: Plot, run: Run) -> pl.DataFrame:
 
 
 def unit(plot: Plot, units: dict[str, str]) -> str:
-    """The y unit of a plot: its own, else that of the first attribute it names."""
+    """Return the y unit of a plot: its own, else that of the first attribute it names."""
     if plot.unit is not None:
         return plot.unit
 
@@ -222,16 +248,10 @@ def _lines(index: int, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
         rows = rows.with_columns(value=_VALUE / pl.col("heating_value"))
 
     if layer.per:
-        rows = _per(rows, layer, plot, run)
-
-    if plot.panels == "label":
-        panel = _label(layer)
-
-    else:
-        panel = pl.col(plot.panels).fill_null("") if plot.panels else pl.lit("")
+        rows = _per(rows, layer.per, layer, plot, run)
 
     view = pl.col(plot.select_view).fill_null("") if plot.select_view else pl.lit("")
-    rows = rows.with_columns(label=_label(layer), panel=panel, view=view, layer=pl.lit(index, pl.Int32))
+    rows = rows.with_columns(label=_label(layer), panel=_panel(plot, layer), view=view, layer=pl.lit(index, pl.Int32))
     # a constant is text, not a category, so every text key is cast for the layers to concatenate
     rows = rows.with_columns(pl.col(*_TEXT).cast(pl.Categorical))
 
@@ -243,29 +263,35 @@ def _lines(index: int, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
 
 
 def _accumulate(values: pl.DataFrame, steps: pl.DataFrame) -> pl.DataFrame:
-    """Sum each line over the time steps up to and including each date, as Navigate's report does.
+    """
+    Sum each line over the time steps up to and including each date, as Navigate's report does.
 
     A value is a rate over the step ending at its date; a missing value adds nothing.
     """
-    return values.join(steps, on="date").sort("date").select(
-        *_POINT, value=(_VALUE.fill_null(0.0) * pl.col("step")).cum_sum().over(*LINE)
+    return (
+        values.join(steps, on="date")
+        .sort("date")
+        .select(*_POINT, value=(_VALUE.fill_null(0.0) * pl.col("step")).cum_sum().over(*LINE))
     )
 
 
-def _per(rows: pl.DataFrame, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
-    """The rows divided by the layer's per series at their date, summed over all its rows but for the columns the
-    lines, panels or views are split by: node by node within its own kind, and key by key where it has the key.
-
-    The divisor of every row of a line is then the same, so a line is the ratio of the sums, and the lines of a stack
-    split otherwise add up to the total's. A row without a divisor at its date, or with zero, is left out.
+def _per(rows: pl.DataFrame, per: tuple[str, str], layer: Layer, plot: Plot, run: Run) -> pl.DataFrame:
     """
-    kind, _ = layer.per
-    divisor = run.rows.get(layer.per, run.empty)
+    Divide the rows by the layer's per series, (kind, attribute), at their date.
+
+    The divisor is summed over all its rows but for the columns the lines, panels or views are split by: node by node
+    within its own kind, and key by key where it has the key. The divisor of every row of a line is then the same, so a
+    line is the ratio of the sums, and the lines of a stack split otherwise add up to the total's. A row without a
+    divisor at its date, or with zero, is left out.
+    """
+    kind, _ = per
+    divisor = run.rows.get(per, run.empty)
     split = {plot.panels, plot.select_view, layer.split_by}
     on = [
-        column for column in ("node", "key1", "key2") if column in split and (
-            all(k == kind for k, _ in layer.series) if column == "node" else divisor.get_column(column).count() > 0
-        )
+        column
+        for column in ("node", "key1", "key2")
+        if column in split
+        and (all(k == kind for k, _ in layer.series) if column == "node" else divisor.get_column(column).count() > 0)
     ]
     divisor = divisor.group_by("date", *on).agg(per=_VALUE.sum()).filter(pl.col("per") != 0)
 
@@ -273,7 +299,8 @@ def _per(rows: pl.DataFrame, layer: Layer, plot: Plot, run: Run) -> pl.DataFrame
 
 
 def _heating_value(file: ResultsFile) -> pl.Expr:
-    """The heating value, GJ/t, of the fuel a row is about: a plant's own fuel, else the fuel in key1, if the file gives it.
+    """
+    Return the heating value, GJ/t, of a row's fuel: a plant's own fuel, else the fuel in key1, if the file gives it.
 
     A compiled file carries no constants, so its rows have none.
     """
@@ -281,6 +308,13 @@ def _heating_value(file: ResultsFile) -> pl.Expr:
     fuel = pl.when(pl.col("kind") == "plant").then(plant_fuel).otherwise(pl.col("key1"))
 
     return fuel.replace_strict(file.heating_values, default=None, return_dtype=pl.Float32)
+
+
+def _panel(plot: Plot, layer: Layer) -> pl.Expr:
+    if plot.panels == "label":
+        return _label(layer)
+
+    return pl.col(plot.panels).fill_null("") if plot.panels else pl.lit("")
 
 
 def _label(layer: Layer) -> pl.Expr:

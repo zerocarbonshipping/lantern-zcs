@@ -1,7 +1,5 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
-"""Draw the prepared lines of one or more runs as a Plotly figure, one panel per value of the plot's panels.
+"""
+Draw the prepared lines of one or more runs as a Plotly figure, one panel per value of the plot's panels.
 
 Several runs share the panels in a colour each where colour tells nothing else, that is where no panel's layer has more
 than one label; stacks and the other plots get a column of panels per run. A line with a summary gets its band, low to
@@ -13,14 +11,18 @@ from __future__ import annotations
 import itertools
 import math
 import re
-from collections.abc import Callable
+from typing import TYPE_CHECKING
 
 import plotly.graph_objects as go
 import polars as pl
 from plotly.subplots import make_subplots
 
 from lantern import data
-from lantern.config import Config, Plot, Style
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from lantern.config import Config, Plot, Style
 
 # unit head to (base unit, power of ten of the head); counts and money keep their unit, plotly's ticks scale them
 _SCALABLE = {"GJ": ("J", 9), "MJ": ("J", 6), "J": ("J", 0), "t": ("t", 0), "tCO2e": ("tCO2e", 0), "MW": ("W", 6), "W": ("W", 0)}
@@ -31,7 +33,12 @@ _BAND_ALPHA = 0.2
 
 
 def build(
-    plot: Plot, series: pl.DataFrame, unit: str, config: Config, runs: dict[str, str], panel: str | None = None,
+    plot: Plot,
+    series: pl.DataFrame,
+    unit: str,
+    config: Config,
+    runs: dict[str, str],
+    panel: str | None = None,
 ) -> go.Figure:
     """Draw one plot of the runs, named in order in runs, or only the given panel, enlarged."""
     rank = _rank(config)
@@ -68,7 +75,7 @@ def build(
     columns = list(runs) if tiled else [None]
     cells = [(p, run) for p in panels for run in columns]
     rows, cols = (len(panels), len(columns)) if tiled and len(panels) > 1 else _shape(len(cells))
-    titles = [" · ".join(filter(None, (config.labels.get(p, p), runs.get(run)))) for p, run in cells]
+    titles = [" · ".join(filter(None, (config.labels.get(p, p), runs[run] if run else None))) for p, run in cells]
     figure = _grid(titles, rows, cols, ("rows" if len(panels) > 1 else "all") if tiled else False)
     # the page's panel select lists the panels, a click on a cell enlarges its panel and a run's colour marks it in the
     # run list
@@ -94,8 +101,13 @@ def build(
             name = f"{name} · {runs[run]}"
 
         trace = go.Scatter(
-            x=x, y=line.get_column("value").to_list(), mode="lines", name=name, legendgroup=group,
-            showlegend=group not in shown, line={"color": color, "width": _LINE_WIDTH, "dash": layer.line},
+            x=x,
+            y=line.get_column("value").to_list(),
+            mode="lines",
+            name=name,
+            legendgroup=group,
+            showlegend=group not in shown,
+            line={"color": color, "width": _LINE_WIDTH, "dash": layer.line},
         )
 
         if layer.draw == "stack":
@@ -113,7 +125,9 @@ def build(
         figure.add_trace(trace, row=row, col=col)
 
     figure.update_layout(
-        template="plotly_white", hovermode="x unified", legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
+        template="plotly_white",
+        hovermode="x unified",
+        legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
         font=style.font,
     )
     figure.update_yaxes(rangemode="tozero" if plot.y_axis == "zero" else "normal")
@@ -123,37 +137,51 @@ def build(
 
 
 def _summary_traces(line: pl.DataFrame, name: str, group: str, color: str) -> list[go.Scatter]:
-    """The band of a line, low to high, and its median, dashed; they toggle with the line in the legend."""
+    """Return the band of a line, low to high, and its median, dashed; they toggle with the line in the legend."""
     x = line.get_column("date").to_list()
     edge = {"x": x, "mode": "lines", "line": {"width": 0, "color": color}, "legendgroup": group, "showlegend": False}
 
     return [
         go.Scatter(y=line.get_column("high").to_list(), name=f"{name} high", hoverinfo="skip", **edge),
-        go.Scatter(y=line.get_column("low").to_list(), name=f"{name} low", fill="tonexty", fillcolor=_rgba(color),
-                   hoverinfo="skip", **edge),
         go.Scatter(
-            x=x, y=line.get_column("median").to_list(), mode="lines", name=f"{name} median", legendgroup=group,
-            showlegend=False, line={"color": color, "width": _LINE_WIDTH / 2, "dash": "dash"},
+            y=line.get_column("low").to_list(),
+            name=f"{name} low",
+            fill="tonexty",
+            fillcolor=_rgba(color),
+            hoverinfo="skip",
+            **edge,
+        ),
+        go.Scatter(
+            x=x,
+            y=line.get_column("median").to_list(),
+            mode="lines",
+            name=f"{name} median",
+            legendgroup=group,
+            showlegend=False,
+            line={"color": color, "width": _LINE_WIDTH / 2, "dash": "dash"},
         ),
     ]
 
 
 def _rgba(color: str, alpha: float = _BAND_ALPHA) -> str:
-    """A hex colour, #rgb or #rrggbb, as rgba with the alpha."""
+    """Convert a hex colour, #rgb or #rrggbb, to rgba with the alpha."""
     digits = color[1:] if len(color) == 7 else "".join(c * 2 for c in color[1:])
-    r, g, b = (int(digits[i:i + 2], 16) for i in (0, 2, 4))
+    r, g, b = (int(digits[i : i + 2], 16) for i in (0, 2, 4))
 
     return f"rgba({r}, {g}, {b}, {alpha})"
 
 
 def panels_of(series: pl.DataFrame, config: Config) -> list[str]:
-    """The panels of prepared lines, in the canonical order of the labels."""
+    """Return the panels of prepared lines, in the canonical order of the labels."""
     return sorted(series.get_column("panel").unique().to_list(), key=_rank(config))
 
 
 def table(series: pl.DataFrame, config: Config, runs: dict[str, str], panel: str | None = None) -> str:
-    """The lines of a figure as CSV, a row per value: run, panel, label, date, value, named as displayed and in the
-    figure's order; the values as the file holds them, in the plot's unit."""
+    """
+    Return the lines of a figure as CSV, a row per value: run, panel, label, date, value.
+
+    They are named as displayed and in the figure's order; the values are as the file holds them, in the plot's unit.
+    """
     if panel is not None:
         series = series.filter(pl.col("panel") == panel)
 
@@ -170,7 +198,7 @@ def table(series: pl.DataFrame, config: Config, runs: dict[str, str], panel: str
 
 
 def _run_color(run: str, style: Style) -> str | None:
-    """The colour plots.yaml gives a run: by its id, else by its name within its compiled file."""
+    """Return the colour plots.yaml gives a run: by its id, else by its name within its compiled file."""
     return style.run_colors.get(run) or style.run_colors.get(run.partition("/")[2] or run)
 
 
@@ -180,8 +208,10 @@ def _overlays(plot: Plot, series: pl.DataFrame) -> bool:
 
 
 def _most_labels(series: pl.DataFrame, *keys: str) -> int:
-    """The most labels a run has in one group of the keys."""
-    return series.group_by("run", *keys).agg(pl.col("label").n_unique()).get_column("label").max() or 0
+    """Count the most labels a run has in one group of the keys."""
+    most: int | None = series.group_by("run", *keys).agg(pl.col("label").n_unique()).select(pl.col("label").max()).item()
+
+    return most or 0
 
 
 def _scale_unit(magnitude: float, unit: str) -> tuple[float, str]:

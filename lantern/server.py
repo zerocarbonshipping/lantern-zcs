@@ -1,33 +1,37 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
 """Serve the page and its JSON API on localhost; the session is the only state, used by one request at a time."""
 
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
 from functools import cache
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
+from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, unquote, urlparse
 
 from plotly.offline import get_plotlyjs
 
 from lantern.config import ConfigError
 from lantern.data import ResultsFileError
-from lantern.session import Session
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from lantern.session import Session
 
 STATIC = files("lantern").joinpath("static")
 ASSETS = {
-    "/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"), "/app.css": ("app.css", "text/css"),
+    "/": ("index.html", "text/html"),
+    "/app.js": ("app.js", "text/javascript"),
+    "/app.css": ("app.css", "text/css"),
     "/logo.svg": ("logo.svg", "image/svg+xml"),
 }
 
 
 def make_server(session: Session, port: int) -> ThreadingHTTPServer:
-    """An HTTP server for the session on localhost; port 0 picks a free one.
+    """
+    Make an HTTP server for the session on localhost; port 0 picks a free one.
 
     Each connection gets a thread, so one a browser opens and never sends a request on holds up nothing but itself.
     """
@@ -109,7 +113,7 @@ class _Handler(BaseHTTPRequestHandler):
         with self.session.lock:
             return ask(*args)
 
-    def _update(self, change: Callable[..., None], *args: object) -> dict:
+    def _update(self, change: Callable[..., None], *args: object) -> dict[str, object]:
         """Change the session and read its state after as one step, so no request sees it half-changed."""
         with self.session.lock:
             change(*args)
@@ -119,7 +123,11 @@ class _Handler(BaseHTTPRequestHandler):
         self._send(json.dumps(value).encode(), "application/json", status)
 
     def _send(
-        self, body: bytes, content_type: str, status: HTTPStatus = HTTPStatus.OK, headers: dict[str, str] | None = None,
+        self,
+        body: bytes,
+        content_type: str,
+        status: HTTPStatus = HTTPStatus.OK,
+        headers: dict[str, str] | None = None,
     ) -> None:
         try:
             self.send_response(status)
@@ -141,4 +149,6 @@ class _Handler(BaseHTTPRequestHandler):
 
 @cache
 def _plotly_js() -> bytes:
-    return get_plotlyjs().encode()
+    script: str = get_plotlyjs()
+
+    return script.encode()

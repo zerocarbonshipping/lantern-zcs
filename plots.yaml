@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
 # Lantern's plot catalogue, read from the folder Lantern is started in, else from
 # the home folder. PLOTS.md in the repository is the manual; the names, colours
 # and order of the labels are in the package's labels.yaml, the colours and the

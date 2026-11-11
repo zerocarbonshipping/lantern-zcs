@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: CC-BY-4.0
-
 cff-version: 1.2.0
 title: Lantern
 abstract: "Browser viewer for Navigate results files: interactive Plotly plots of one or several runs"
@@ -16,6 +13,7 @@ authors:
   - given-names: Julius
     family-names: Thomas
     email: julius.thomas@zerocarbonshipping.com
+    orcid: https://orcid.org/0009-0006-4512-7330
     affiliation: "Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping"
   - given-names: "Frederik Winkel"
     family-names: Lehn

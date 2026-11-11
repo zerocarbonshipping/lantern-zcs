@@ -1,8 +1,3 @@
-<!--
-SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-SPDX-License-Identifier: CC-BY-4.0
--->
-
 # The plot catalogue: `plots.yaml`
 
 [`plots.yaml`](plots.yaml) lists every plot Lantern shows: which series of the

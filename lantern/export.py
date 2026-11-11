@@ -1,18 +1,22 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
+"""
+Write what the viewer shows to files instead of serving it.
 
-"""Write what the viewer shows to files instead of serving it: a plot as HTML, or the rows of the results files as one
-CSV."""
+A plot goes to an HTML page, and the rows of the results files to one CSV.
+"""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 from tqdm import tqdm
 
 from lantern import data
-from lantern.session import Session
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from lantern.session import Session
 
 # a plot to write: its id, the runs drawn together or None for each run alone, and a panel or None for all panels
 type Spec = tuple[str, list[str] | None, str | None]
@@ -23,7 +27,8 @@ class ExportError(Exception):
 
 
 def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
-    """Write plots as HTML pages, as the viewer opens them: a plot with views in its first view.
+    """
+    Write plots as HTML pages, as the viewer opens them: a plot with views in its first view.
 
     A spec, a plot id, runs and a panel as listing() names them, writes that plot of each loaded run when runs is None,
     else one figure of the runs drawn together, as the viewer compares them, and only the panel if one is given, as
@@ -40,9 +45,9 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
     skipped = []
 
     # every figure first, so the progress bar knows how many there are and a misspelled id stops before any is written
-    for plot_id, runs, panel in specs:
+    for plot_id, runs, given_panel in specs:
         _known("plot", [plot_id], plot_ids)
-        panel = _panel(session, plot_id, every_run, panel)
+        panel = _panel(session, plot_id, every_run, given_panel)
 
         if runs is None:
             figures += [((run,), plot_id, panel) for run in every_run if plot_id in available[run]]
@@ -50,17 +55,16 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
             continue
 
         _known("run", runs, every_run)
-        runs = tuple(dict.fromkeys(runs))
+        distinct = tuple(dict.fromkeys(runs))
 
-        if any(plot_id in available[run] for run in runs):
-            figures.append((runs, plot_id, panel))
+        if any(plot_id in available[run] for run in distinct):
+            figures.append((distinct, plot_id, panel))
         else:
-            skipped.append(f"{plot_id} in {'+'.join(runs)}")
+            skipped.append(f"{plot_id} in {'+'.join(distinct)}")
 
     paths = []
 
-    for runs, plot_id, panel in tqdm(figures, desc="Plotting", unit="plot", colour="green", dynamic_ncols=True,
-                                     disable=None):
+    for runs, plot_id, panel in tqdm(figures, desc="Plotting", unit="plot", colour="green", dynamic_ncols=True, disable=None):
         # a run without the panel gets the whole plot, as the viewer does
         if panel is not None and panel not in [value for value, _ in session.panels(plot_id, list(runs))]:
             skipped.append(f"panel {panel} of {plot_id} in {'+'.join(runs)}")
@@ -73,8 +77,9 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
         height = figure.layout.height
         figure.layout.height = None
         # plotly.js comes from its CDN, in the version the figure was made for, which keeps each file small
-        figure.write_html(path, include_plotlyjs="cdn", config={"displaylogo": False},
-                          default_height=f"max(100vh - 16px, {height}px)")
+        figure.write_html(
+            path, include_plotlyjs="cdn", config={"displaylogo": False}, default_height=f"max(100vh - 16px, {height}px)"
+        )
         paths.append(path)
 
     print(f"Wrote {len(paths)} plots to {folder}", flush=True)
@@ -85,8 +90,7 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
 
 
 def listing(session: Session) -> str:
-    """The loaded runs and the plots with data in any of them, with the panels of their first view, as --plot takes
-    them."""
+    """List the loaded runs and the plots with data in any of them, with the panels of their first view, for --plot."""
     runs = session.runs
     entries = [entry for entry in session.catalogue(runs) if entry["available"]]
     width = max((len(entry["id"]) for entry in entries), default=0)
@@ -109,7 +113,7 @@ def _known(kind: str, names: list[str], known: list[str]) -> None:
 
 
 def _panel(session: Session, plot_id: str, runs: list[str], panel: str | None) -> str | None:
-    """A panel of a plot by its value or its display name, as --list and the page show them."""
+    """Find a panel of a plot by its value or its display name, as --list and the page show them."""
     if panel is None:
         return None
 
@@ -123,8 +127,12 @@ def _panel(session: Session, plot_id: str, runs: list[str], panel: str | None) -
 
 
 def _path(folder: Path, names: list[str], plot_id: str, panel: str | None) -> Path:
-    """Where a figure goes: a run's own in its folder, one of several runs in the plot's, named after them; a panel's
-    is named after the panel too."""
+    """
+    Return the path a figure goes to.
+
+    A run's own goes in its folder, one of several runs in the plot's, named after them; a panel's is named after the
+    panel too.
+    """
     suffix = f"_{panel}" if panel else ""
 
     if len(names) == 1:
@@ -134,8 +142,11 @@ def _path(folder: Path, names: list[str], plot_id: str, panel: str | None) -> Pa
 
 
 def rows(sources: list[Path], path: Path) -> None:
-    """Write the rows of the results files at the sources, every series and date, as one CSV: run, kind, node,
-    attribute, key1, key2, date, value."""
+    """
+    Write the rows of the results files at the sources, every series and date, as one CSV.
+
+    The columns are run, kind, node, attribute, key1, key2, date and value.
+    """
     frames = []
 
     labels = [pl.col(c).cast(pl.String) for c in data.LABELS]

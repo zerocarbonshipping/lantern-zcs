@@ -1,6 +1,3 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
 # Display names and colours of the labels that tell series apart: fuel types,
 # fuels, feedstocks, fleets, vessels, processes, producers, plants, energy demand
 # types and the attribute names plots label their series with.

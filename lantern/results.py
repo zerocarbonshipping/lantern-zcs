@@ -1,23 +1,27 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
 """Load a results file: read each run once and prepare every plot of it."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import polars as pl
 
 from lantern import data
-from lantern.config import Plot
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from lantern.config import Plot
 
 
 @dataclass(frozen=True)
 class Results:
-    """A loaded results file: its name, units and runs, and the prepared lines of every plot with data, by plot id;
-    the file itself is not kept."""
+    """
+    A loaded results file: its name, units and runs, and the prepared lines of every plot with data, by plot id.
+
+    The file itself is not kept.
+    """
 
     name: str
     units: dict[str, str]

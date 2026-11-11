@@ -1,7 +1,6 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
-
 """Lantern: a browser viewer for Navigate results files."""
+
+from __future__ import annotations
 
 import os
 

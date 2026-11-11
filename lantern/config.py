@@ -1,19 +1,23 @@
-# SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-# SPDX-License-Identifier: Apache-2.0
+"""
+Read the configuration: plots.yaml and the packaged labels.yaml and theme.yaml.
 
-"""Read plots.yaml (what to plot) from the working folder or the home folder, and the packaged labels.yaml (series names,
-colours and order) and theme.yaml (the colours), which plots.yaml can override entry by entry."""
+plots.yaml (what to plot) comes from the working folder or the home folder; the packaged labels.yaml gives the series
+names, colours and order and theme.yaml the colours, and plots.yaml can override both entry by entry.
+"""
 
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable
 from dataclasses import dataclass, fields, replace
 from importlib.resources import files
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import plotly.colors
 import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
 
 # keys whose values are numbers or true/false; YAML reads every other value as text
 _TYPED = {"scale", "cumulative", "per_gj", "total", "size", "weight"}
@@ -92,7 +96,7 @@ class Config:
     style: Style
 
     def plot(self, plot_id: str) -> Plot:
-        """The plot with this id."""
+        """Return the plot with this id."""
         for plot in self.plots:
             if plot.id == plot_id:
                 return plot
@@ -101,8 +105,11 @@ class Config:
 
 
 def load_config() -> Config:
-    """Read plots.yaml, the first of PLOTS_FILES there is, and the packaged labels.yaml and theme.yaml, with the
-    entries plots.yaml overrides."""
+    """
+    Read plots.yaml and the packaged labels.yaml and theme.yaml.
+
+    plots.yaml is the first of PLOTS_FILES there is; labels.yaml and theme.yaml come with the entries it overrides.
+    """
     plots = _catalogue()
     runs = _named(plots.pop(_RUNS, None) or {}, f"plots.yaml: {_RUNS}", "run")
     theme = _theme(plots.pop(_THEME, None) or {})
@@ -111,7 +118,9 @@ def load_config() -> Config:
 
     return Config(
         plots=tuple(
-            plot for section, section_entries in plots.items() for key, raw in section_entries.items()
+            plot
+            for section, section_entries in plots.items()
+            for key, raw in section_entries.items()
             for plot in _plots(f"{section}_{key}", section.capitalize(), raw)
         ),
         labels={label: value["name"] for label, value in entries if "name" in value},
@@ -126,7 +135,7 @@ def load_config() -> Config:
     )
 
 
-def _named(raw: object, where: str, what: str) -> dict[str, dict]:
+def _named(raw: object, where: str, what: str) -> dict[str, dict[str, str]]:
     """Entries that name runs or labels, as {name, color} each: a display name alone, or a mapping of name and color."""
     if not isinstance(raw, dict):
         raise ConfigError(f"{where} must map each {what} to a display name or to name and color")
@@ -140,22 +149,25 @@ def _named(raw: object, where: str, what: str) -> dict[str, dict]:
     return entries
 
 
-def _catalogue() -> dict:
-    """The entries of the first plots.yaml there is, in the working folder or the home folder."""
+def _catalogue() -> dict[str, Any]:
+    """Read the entries of the first plots.yaml there is, in the working folder or the home folder."""
     for path in PLOTS_FILES:
         if path.is_file():
-            return _read(path.read_text("utf-8"), str(path)) or {}
+            return _read(path.read_text("utf-8"), str(path))
 
     raise ConfigError(f"no plots.yaml in the working folder or the home folder: {' or '.join(map(str, PLOTS_FILES))}")
 
 
-def _package(name: str) -> dict:
-    return _read(files("lantern").joinpath(name).read_text("utf-8"), name) or {}
+def _package(name: str) -> dict[str, Any]:
+    return _read(files("lantern").joinpath(name).read_text("utf-8"), name)
 
 
-def _theme(override: object) -> dict:
-    """The packaged theme with the entries the theme key of plots.yaml overrides: swatches by name, the palette and the
-    font whole; without any palette, Plotly's own colours."""
+def _theme(override: object) -> dict[str, Any]:
+    """
+    Return the packaged theme with the entries the theme key of plots.yaml overrides.
+
+    Swatches are overridden by name, the palette and the font whole; without any palette, Plotly's own colours are used.
+    """
     theme = _package("theme.yaml")
 
     if not isinstance(override, dict) or set(override) - _THEME_KEYS:
@@ -175,9 +187,12 @@ def _theme(override: object) -> dict:
     return {"swatches": swatches, "palette": palette, "font": font}
 
 
-def _labels(override: object) -> list[tuple[str, dict]]:
-    """The entries of the packaged labels.yaml, (label, {name, color}), in stacking order, with those the labels key of
-    plots.yaml overrides, by label; a label new there comes after the packaged ones."""
+def _labels(override: object) -> list[tuple[str, dict[str, str]]]:
+    """
+    Return the entries of the packaged labels.yaml, (label, {name, color}), in stacking order.
+
+    The labels key of plots.yaml overrides entries by label; a label new there comes after the packaged ones.
+    """
     # the groups only organise the file; the order of the labels in it is the stacking order
     groups = [_named(group, "labels.yaml", "label") for group in _package("labels.yaml").values()]
     entries = [(label, value) for group in groups for label, value in group.items()]
@@ -193,19 +208,28 @@ def _labels(override: object) -> list[tuple[str, dict]]:
     return entries + [(label, value) for label, value in override.items() if label not in known]
 
 
-def _read(text: str, name: str) -> dict:
-    _check_text(yaml.compose(text), name)
+def _read(text: str, name: str) -> dict[str, Any]:
+    node = yaml.compose(text)
 
-    return yaml.safe_load(text)
+    if node is None:
+        return {}
+
+    _check_text(node, name)
+    content = yaml.safe_load(text)
+
+    if not isinstance(content, dict):
+        raise ConfigError(f"{name} must map keys to entries")
+
+    return content
 
 
-def _colors(entries: Iterable[tuple[str, dict]], swatches: dict[str, str], what: str) -> dict[str, str]:
-    """The colours of the entries that give one, as hex, by label or run."""
+def _colors(entries: Iterable[tuple[str, dict[str, str]]], swatches: dict[str, str], what: str) -> dict[str, str]:
+    """Return the colours of the entries that give one, as hex, by label or run."""
     return {key: _color(value["color"], swatches, f"{what} '{key}'") for key, value in entries if "color" in value}
 
 
 def _color(color: str, swatches: dict[str, str], where: str) -> str:
-    """A colour as hex: a hex value, #rgb or #rrggbb, as it is, else the theme's swatch of that name."""
+    """Resolve a colour to hex: a hex value, #rgb or #rrggbb, as it is, else the theme's swatch of that name."""
     if _HEX.fullmatch(color):
         return color
 
@@ -234,8 +258,8 @@ def _check_text(node: yaml.Node, name: str, key: str | None = None) -> None:
             _check_text(value, name, item_key.value)
 
 
-def _plots(plot_id: str, section: str, raw: dict) -> list[Plot]:
-    """An entry's plots: the stack as written, or its variants in order, lines with a panel per label and the stack."""
+def _plots(plot_id: str, section: str, raw: dict[str, Any]) -> list[Plot]:
+    """Return an entry's plots: the stack as written, or its variants in order, lines with a panel per label and the stack."""
     plot = _plot(plot_id, section, raw)
     variants = raw.get("variants")
 
@@ -256,7 +280,7 @@ def _plots(plot_id: str, section: str, raw: dict) -> list[Plot]:
     return [lines if variant == "lines" else stacked for variant in variants]
 
 
-def _plot(plot_id: str, section: str, raw: dict) -> Plot:
+def _plot(plot_id: str, section: str, raw: dict[str, Any]) -> Plot:
     layer_keys = _LAYER_KEYS | {"total"}
     unknown = set(raw) - _PLOT_KEYS - layer_keys
 
@@ -281,7 +305,7 @@ def _plot(plot_id: str, section: str, raw: dict) -> Plot:
     )
 
 
-def _layer(plot_id: str, raw: dict) -> Layer:
+def _layer(plot_id: str, raw: dict[str, Any]) -> Layer:
     values = dict(raw)
     total = values.pop("total", False)
     unknown = set(values) - _LAYER_KEYS
@@ -309,7 +333,7 @@ def _layer(plot_id: str, raw: dict) -> Layer:
 
 
 def _series(plot_id: str, series: str) -> tuple[str, str]:
-    """A series "kind.attribute" as (kind, attribute)."""
+    """Split a series "kind.attribute" into (kind, attribute)."""
     kind, _, attribute = series.partition(".") if isinstance(series, str) else ("", "", "")
 
     if not kind or not attribute:

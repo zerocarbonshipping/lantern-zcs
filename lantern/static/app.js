@@ -1,6 +1,3 @@
-// SPDX-FileCopyrightText: 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping
-// SPDX-License-Identifier: Apache-2.0
-
 const $ = (id) => document.getElementById(id);
 // a list goes as the key repeated, empty values not at all
 const query = (params) => new URLSearchParams(Object.entries(params).flatMap(([k, v]) => [v].flat().filter(Boolean).map((x) => [k, x]))).toString();
