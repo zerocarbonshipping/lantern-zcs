@@ -24,10 +24,10 @@ if TYPE_CHECKING:
 
     from lantern.config import Config, Plot, Style
 
-# unit head to (base unit, power of ten of the head); counts and money keep their unit, plotly's ticks scale them
+# counts and money keep their unit; plotly's ticks scale them
 _SCALABLE = {"GJ": ("J", 9), "MJ": ("J", 6), "J": ("J", 0), "t": ("t", 0), "tCO2e": ("tCO2e", 0), "MW": ("W", 6), "W": ("W", 0)}
 _PREFIXES = {3: "k", 6: "M", 9: "G", 12: "T", 15: "P", 18: "E"}
-_PANEL_HEIGHT = 280  # px, per row of panels; the page grows a figure to fill the window
+_PANEL_HEIGHT = 280  # px per row of panels
 _LINE_WIDTH = 2.0
 _BAND_ALPHA = 0.2
 
@@ -43,7 +43,6 @@ def build(
     """Draw one plot of the runs, named in order in runs, or only the given panel, enlarged."""
     rank = _rank(config)
     style = config.style
-    # every selected run has a colour, for the sidebar, drawn in only when the runs are overlaid
     free = itertools.cycle(style.palette)
     run_colors = {run: _run_color(run, style) or next(free) for run in runs}
     present = set(series.get_column("run").unique().to_list())
@@ -52,7 +51,6 @@ def build(
     labels = sorted(series.get_column("label").unique().to_list())
     overlay = len(runs) > 1 and _overlays(plot, series)
     tiled = len(runs) > 1 and not overlay
-    # overlaid, a panel of one label needs only the runs told apart, in the legend too
     by_run = overlay and _most_labels(series, "panel") <= 1
 
     if overlay:
@@ -62,7 +60,6 @@ def build(
         free = itertools.cycle(style.palette)
         colors = {label: style.colors.get(label) or next(free) for label in labels}
 
-    # every panel, [value, title], for the page to enlarge one; an enlarged panel keeps the colours
     meta = [[p, config.labels.get(p, p)] for p in panels]
 
     if panel in panels:
@@ -71,14 +68,12 @@ def build(
     divisor, unit = _scale_unit(series.select(pl.col("value").abs().max()).item() or 0.0, unit)
     series = series.with_columns(pl.col("value", *data.SUMMARY) / divisor)
 
-    # a cell per panel, or tiled per panel and run: a row per panel and a column per run, sharing the y axis
     columns = list(runs) if tiled else [None]
     cells = [(p, run) for p in panels for run in columns]
     rows, cols = (len(panels), len(columns)) if tiled and len(panels) > 1 else _shape(len(cells))
     titles = [" · ".join(filter(None, (config.labels.get(p, p), runs[run] if run else None))) for p, run in cells]
     figure = _grid(titles, rows, cols, ("rows" if len(panels) > 1 else "all") if tiled else False)
-    # the page's panel select lists the panels, a click on a cell enlarges its panel and a run's colour marks it in the
-    # run list
+    # the page reads the panels, the panel of each cell and the run colours from meta
     figure.update_layout(meta={"panels": meta, "cells": [p for p, _ in cells], "colors": run_colors})
     shown = set()
 
@@ -91,7 +86,6 @@ def build(
         cell = cells.index((panel, run if tiled else None))
         row, col = cell // cols + 1, cell % cols + 1
         name, x = config.labels.get(label, label), line.get_column("date").to_list()
-        # overlaid, a run has a colour, and its series are named after it
         group, color = (f"{label}|{run}", colors[run]) if overlay else (label, colors[label])
 
         if by_run:
@@ -130,7 +124,8 @@ def build(
         legend={"orientation": "h", "yanchor": "top", "y": -0.08, "x": 0},
         font=style.font,
     )
-    figure.update_yaxes(rangemode="tozero" if plot.y_axis == "zero" else "normal")
+    # r, not g: no exponent notation for USD in the billions
+    figure.update_yaxes(rangemode="tozero" if plot.y_axis == "zero" else "normal", hoverformat=",.3~r")
     figure.update_yaxes(title_text=unit, col=1)
 
     return figure
@@ -190,7 +185,6 @@ def table(series: pl.DataFrame, config: Config, runs: dict[str, str], panel: str
     if series.is_empty():
         return ",".join((*names, "date", "value")) + "\n"
 
-    # the summary columns go along where any line has a summary
     summary = [c for c in data.SUMMARY if series.get_column(c).is_not_null().any()]
     named = [pl.col(k).replace_strict(v, default=pl.col(k)).cast(pl.String) for k, v in names.items()]
 
@@ -228,10 +222,9 @@ def _scale_unit(magnitude: float, unit: str) -> tuple[float, str]:
 
 
 def _grid(titles: list[str], rows: int, cols: int, shared_y: str | bool) -> go.Figure:
-    width = 140 // cols  # characters a title line takes before it would run into its neighbour's
+    width = 140 // cols  # characters across the figure
     titles = [_wrap(title, width) for title in titles]
     figure = make_subplots(rows=rows, cols=cols, subplot_titles=titles, shared_xaxes=True, shared_yaxes=shared_y)
-    # a figure has no title, so the top margin only holds the first row's panel titles, a line each
     lines = max((title.count("<br>") + 1 for title in titles if title), default=0)
     figure.update_layout(height=rows * _PANEL_HEIGHT, margin={"t": 16 + 24 * lines})
 

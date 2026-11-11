@@ -1,7 +1,6 @@
 name: Publish
 
-# Every push to main is a release: the checks of ci.yml run, then the wheel and sdist they built and tested go to PyPI.
-# PyPI refuses a version it already has, so a push to main without a new version in pyproject.toml fails here.
+# PyPI refuses a version it already has: a push to main needs a new version in pyproject.toml
 on:
   push:
     branches: [ main ]

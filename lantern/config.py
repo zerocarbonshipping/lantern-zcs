@@ -19,7 +19,6 @@ import yaml
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-# keys whose values are numbers or true/false; YAML reads every other value as text
 _TYPED = {"scale", "cumulative", "per_gj", "total", "size", "weight"}
 _TEXT = "tag:yaml.org,2002:str"
 _PLOT_KEYS = {"title", "unit", "panels", "select_view", "y_axis", "variants", "layers"}
@@ -27,15 +26,11 @@ _AXES = {"zero", "fit"}
 _VARIANTS = {"lines", "stack"}
 _THEME_KEYS = {"swatches", "palette", "font"}
 _FONT_KEYS = {"family", "size", "weight", "color"}
-# the keys of plots.yaml that are not sections: the display names and colours of runs, and overrides of entries of
-# labels.yaml and theme.yaml
 _RUNS = "customize_runs"
 _LABELS = "labels"
 _THEME = "theme"
-# an entry that names a run or a label: a display name, or a mapping of name and color
 _NAME_KEYS = {"name", "color"}
 _HEX = re.compile(r"#([0-9a-fA-F]{3}){1,2}")
-# where plots.yaml is looked for, in order
 PLOTS_FILES = (Path.cwd() / "plots.yaml", Path.home() / "plots.yaml")
 
 
@@ -197,7 +192,6 @@ def _labels(override: object) -> list[tuple[str, dict[str, str]]]:
 
     The labels key of plots.yaml overrides entries by label; a label new there comes after the packaged ones.
     """
-    # the groups only organise the file; the order of the labels in it is the stacking order
     groups = [_named(group, "labels.yaml", "label") for group in _package("labels.yaml").values()]
     entries = [(label, value) for group in groups for label, value in group.items()]
     duplicates = sorted({label for label, _ in entries if sum(other == label for other, _ in entries) > 1})
@@ -279,7 +273,6 @@ def _plots(plot_id: str, section: str, raw: object) -> list[Plot]:
     if not any(layer.draw == "stack" for layer in plot.layers):
         raise ConfigError(f"plot '{plot_id}' has variants but no stack layer")
 
-    # the stack's panels move to the view select, as the lines' panels are the labels
     layers = tuple(replace(layer, draw="line") if layer.draw == "stack" else layer for layer in plot.layers)
     lines = replace(plot, layers=layers, panels="label", select_view=plot.select_view or plot.panels)
     stacked = replace(plot, id=f"{plot.id}_stacked", title=f"{plot.title} (Stacked)") if "lines" in variants else plot
@@ -336,7 +329,6 @@ def _layer(plot_id: str, raw: dict[str, Any]) -> Layer:
     values["series"] = tuple(_series(plot_id, s) for s in ([series] if isinstance(series, str) else series))
 
     if "per" in values:
-        # a running total of a ratio means nothing
         if values.get("cumulative"):
             raise ConfigError(f"a layer of plot '{plot_id}' has both cumulative and per")
 

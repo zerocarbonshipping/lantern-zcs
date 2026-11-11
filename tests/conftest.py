@@ -24,8 +24,6 @@ if TYPE_CHECKING:
 
 ROOT = Path(__file__).parent.parent
 SINGLE = Path(__file__).parent / "fixtures" / "attribute_coverage.parquet"
-# the runs of the compiled file, each the single run with its values scaled; a_median, a_p05 and a_p95 summarise a over
-# its samples, as Horizon writes them, and b has no summary
 SCALES = {"a": 1.0, "b": 2.0, "a_median": 1.0, "a_p05": 0.8, "a_p95": 1.2}
 SUMMARIES = {"a": {"median": "a_median", "low": "a_p05", "high": "a_p95"}}
 

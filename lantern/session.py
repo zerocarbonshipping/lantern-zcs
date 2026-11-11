@@ -44,7 +44,6 @@ class Session:
     def __init__(self, sources: list[Path]) -> None:
         """Read the configuration and load the results files at the sources."""
         self.sources = sources
-        # the contents of the files added on the page, to load again on refresh
         self.uploads: dict[str, bytes] = {}
         self.lock = threading.Lock()
         self._cache: dict[tuple[str | None, ...], Any] = {}

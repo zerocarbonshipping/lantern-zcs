@@ -142,7 +142,7 @@ class _Handler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
         except (BrokenPipeError, ConnectionResetError):
-            pass  # the browser dropped the connection, as a reload does to requests underway; there is no one to tell
+            pass  # the browser dropped the connection, as a reload does
 
     def log_message(self, *args: object) -> None:
         pass

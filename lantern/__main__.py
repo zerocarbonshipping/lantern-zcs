@@ -23,8 +23,6 @@ from lantern.session import Session
 PORT = 8050
 PLOTS = Path("plots")
 DATA = Path("data.csv")
-# a plot id, then optionally runs in brackets and a panel in brackets: fleet_speed, fleet_speed[e2e/nzf_main,e2e/strict_all]
-# or fleet_speed[][Ferry]
 _PLOT = re.compile(r"([^\[\],]+)(?:\[([^\[\]]*)\](?:\[([^\[\]]*)\])?)?")
 
 

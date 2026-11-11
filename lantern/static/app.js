@@ -1,5 +1,4 @@
 const $ = (id) => document.getElementById(id);
-// a list goes as the key repeated, empty values not at all
 const query = (params) => new URLSearchParams(Object.entries(params).flatMap(([k, v]) => [v].flat().filter(Boolean).map((x) => [k, x]))).toString();
 let files = [];
 let plots = [];
@@ -19,10 +18,8 @@ async function api(path, options) {
   return body;
 }
 
-// every loaded run, in the order of the sidebar
 const allRuns = () => files.flatMap((file) => file.runs);
 
-// take the loaded files from the server; the selected runs stay selected while they are loaded
 async function load(state) {
   files = state.files;
   names = state.names;
@@ -36,14 +33,12 @@ async function select(next) {
   render();
 }
 
-// a click selects a run alone, a ctrl- or cmd-click adds it to the selection or takes it out, keeping one
 function pick(id, event) {
   if (!(event.ctrlKey || event.metaKey)) return select([id]);
   const next = runs.includes(id) ? runs.filter((r) => r !== id) : [...runs, id];
   if (next.length) select(next);
 }
 
-// upload results files, which the server loads before it answers; a file is named after itself, without the extension
 async function upload(list) {
   const errors = [];
   let state = null;
@@ -62,7 +57,6 @@ async function upload(list) {
   if (state) await load(state);
 }
 
-// ask the server now and then whether it still runs; one started again is taken up with its files
 async function check() {
   if (checking) return;
   checking = true;
@@ -80,7 +74,6 @@ async function check() {
   $("offline").hidden = !offline;
 }
 
-// whether a colour, "#rgb" or "#rrggbb", is light enough for dark text
 function light(color) {
   const hex = color.length === 4 ? [...color.slice(1)].map((c) => c + c).join("") : color.slice(1);
   const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -97,7 +90,6 @@ function runButton(id, text) {
 }
 
 function render() {
-  // a file of one run is that run; a compiled file lists its runs
   $("runs").replaceChildren(...files.map((file) => {
     const item = document.createElement("li");
     const head = document.createElement("div");
@@ -147,7 +139,6 @@ function render() {
   if (next) show(next.id, $("view").value, $("panel").value || null);
 }
 
-// show a plot, or one panel of it enlarged; only the latest request is drawn
 async function show(id, view, panel = null) {
   const plot = plots.find((p) => p.id === id);
   const request = ++requests;
@@ -159,16 +150,12 @@ async function show(id, view, panel = null) {
   $("view").hidden = !plot.views.length;
   $("view").replaceChildren(...plot.views.map(([value, title]) => new Option(title, value, false, value === view)));
 
-  // the figure lists the full plot's panels, [value, title], for the panel select, and the panel of each cell
-  // for a click on it; an enlarged panel stays enlarged in other runs that have it, else the server draws all panels
   const params = query({ run: runs, view, panel });
   const figure = await api(`/api/plots/${encodeURIComponent(id)}?${params}`);
-  if (request !== requests) return;
+  if (request !== requests) return; // only the latest request is drawn
   ({ panels, cells } = figure.layout.meta);
   if (!panels.some(([value]) => value === panel)) panel = null;
 
-  // a selected run's button is highlighted in its colour, that of its lines when runs are overlaid, with text that
-  // reads on it
   for (const button of $("runs").querySelectorAll(".run")) {
     const color = figure.layout.meta.colors[button.dataset.id];
     button.classList.toggle("colored", Boolean(color));
@@ -179,12 +166,11 @@ async function show(id, view, panel = null) {
   $("panel").hidden = panels.length < 2;
   $("panel").replaceChildren(new Option("All panels", ""), ...panels.map(([value, title]) => new Option(title, value, false, value === panel)));
 
-  // plotly fills the space below the toolbar; a taller panel grid keeps its own height and scrolls
+  // a panel grid taller than the window keeps its height and scrolls
   $("figure").style.minHeight = `${figure.layout.height}px`;
   Object.assign(figure.layout, size(), dark() ? darkLayout(figure.layout) : {});
-  // a redraw of the same view, as after a file is added or removed, keeps the zoom; syncing the y axes or not resets it
+  // a redraw of the same view keeps the zoom
   figure.layout.uirevision = JSON.stringify([id, runs, view, panel, syncedY]);
-  // the modebar's buttons are in buttons.js; they sync the y axes of the layout where asked
   const config = {
     displaylogo: false, toImageButtonOptions: { filename: id, scale: 2 },
     modeBarButtons: modebarButtons(id, params, figure.layout, () => show(id, view, panel)),
@@ -194,7 +180,6 @@ async function show(id, view, panel = null) {
   if (!panel && panels.length > 1) $("figure").on("plotly_click", enlarge);
 }
 
-// the theme: bright, dark, or the system's, kept in this browser; the page's colours follow it in app.css
 const systemDark = matchMedia("(prefers-color-scheme: dark)");
 const dark = () => document.documentElement.dataset.theme === "dark" || (document.documentElement.dataset.theme !== "bright" && systemDark.matches);
 
@@ -205,11 +190,10 @@ function setTheme(theme) {
     localStorage.setItem("lantern.theme", theme);
   } catch {}
 
-  // the server draws on white; a figure is drawn again in the other theme, keeping its zoom
   if (current && runs.length) show(current, $("view").value, $("panel").value || null);
 }
 
-// a colour of the page, resolved in the scheme shown: app.css keeps both in light-dark(), which only an element resolves
+// JS reads a light-dark() variable as its text, so an element resolves it
 function pageColor(name) {
   const probe = document.body.appendChild(document.createElement("i"));
   probe.style.color = `var(${name})`;
@@ -218,8 +202,6 @@ function pageColor(name) {
   return color;
 }
 
-// a figure on the page's dark colours: the server's white template recoloured, its axes defaults for every axis; the
-// colours of the series stay
 function darkLayout(layout) {
   const [fg, surface, line, muted] = ["--fg", "--surface", "--line", "--muted"].map(pageColor);
   const base = layout.template.layout;
@@ -234,7 +216,7 @@ function darkLayout(layout) {
     },
   };
 
-  // a font colour plots.yaml gives wins over the template's, so it is set on the figure
+  // a font colour from plots.yaml would win over the template's
   return { template, font: { ...layout.font, color: fg } };
 }
 
@@ -250,7 +232,6 @@ function enlarge(event) {
 }
 
 $("files").onchange = (e) => { upload(e.target.files); e.target.value = ""; };
-// the radio of the kept theme is checked, System's for none or an unknown one
 const themeRadio = $("theme").querySelector(`input[value="${document.documentElement.dataset.theme}"]`);
 (themeRadio || $("theme").querySelector('input[value="system"]')).checked = true;
 $("theme").onchange = (e) => setTheme(e.target.value);
@@ -272,7 +253,6 @@ $("refresh").onclick = async (e) => {
 };
 window.onresize = () => { if ($("figure").data) Plotly.relayout($("figure"), size()); };
 
-// the columns resize by dragging the gutters beside them; the widths are kept in this browser
 function widths(set = null) {
   try {
     if (set) localStorage.setItem("lantern.columns", JSON.stringify(set));

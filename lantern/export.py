@@ -18,7 +18,6 @@ if TYPE_CHECKING:
 
     from lantern.session import Session
 
-# a plot to write: its id, the runs drawn together or None for each run alone, and a panel or None for all panels
 type Spec = tuple[str, list[str] | None, str | None]
 
 
@@ -37,7 +36,6 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
     ".html".
     """
     every_run = session.runs
-    # a / in a name would make a run a folder
     names = {run: name.replace("/", "_") for run, name in session.short_names(every_run).items()}
     plot_ids = [plot.id for plot in session.config.plots]
     available = {run: {entry["id"] for entry in session.catalogue([run]) if entry["available"]} for run in every_run}
@@ -65,7 +63,6 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
     paths = []
 
     for runs, plot_id, panel in tqdm(figures, desc="Plotting", unit="plot", colour="green", dynamic_ncols=True, disable=None):
-        # a run without the panel gets the whole plot, as the viewer does
         if panel is not None and panel not in [value for value, _ in session.panels(plot_id, list(runs))]:
             skipped.append(f"panel {panel} of {plot_id} in {'+'.join(runs)}")
             continue

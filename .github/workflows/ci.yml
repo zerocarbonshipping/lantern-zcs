@@ -1,13 +1,12 @@
 name: CI
 
-# The package is built once and the tests run on that wheel; on main, publish.yml runs this and uploads the same files.
 on:
   push:
     branches: [ dev ]
   pull_request:
   workflow_call:
 
-# a newer push cancels the checks of an older one, except on main, where every push is published
+# on main, every push is published, so none is cancelled
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || '' }}
   cancel-in-progress: true
@@ -84,7 +83,7 @@ jobs:
           name: dist-artifacts
           path: dist/
 
-      # the tests import the installed wheel, not the checkout, so a file missing from the package fails them
+      # the installed wheel, not the checkout, so a file missing from the package fails the tests
       - name: Install built wheel with dev dependencies
         run: pip install "$(ls dist/*.whl)[dev]"
 

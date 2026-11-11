@@ -26,6 +26,8 @@ describes it. The entries below are the changes since the rewrite was merged
 
 ### Changed
 - Lantern requires Python 3.13 or newer, as Navigate does.
+- Hovered values show 3 significant figures with thousands grouped, such as
+  12,300,000,000 or 0.0123; the CSV downloads keep every digit.
 - The oil labels, oil, fuel oil, HFO and crude oil, are lighter: `black_5`
   in place of `black_7`; the LPG fuel type moves to `black_4`, as the LPG
   fuel has.

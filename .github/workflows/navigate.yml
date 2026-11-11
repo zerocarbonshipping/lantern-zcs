@@ -1,7 +1,5 @@
 name: Navigate
 
-# Runs the tests on a results file that Navigate's dev branch writes now, in place of the committed fixture, so a change
-# in Navigate that Lantern reads or plots differently shows before a user meets it.
 on:
   schedule:
     - cron: '0 6 * * 1'

@@ -24,14 +24,10 @@ if TYPE_CHECKING:
 
 LABELS = ("kind", "node", "attribute", "key1", "key2")
 COLUMNS = (*LABELS, "date", "value")
-# a line of a prepared plot: its run, view ("" for a plot without views), panel, layer and label; it has a point per
-# date
 LINE = ("run", "view", "panel", "layer", "label")
 _POINT = (*LINE, "date")
 _TEXT = ("view", "panel", "label")
-# the columns of the summary of a run over the samples it represents, as a Horizon file's metadata names them
 SUMMARY = ("median", "low", "high")
-# the columns of prepared lines, as prepare() returns them: the value, and the summary where the run has one
 LINES = {
     "run": pl.String,
     "view": pl.String,
@@ -42,7 +38,7 @@ LINES = {
     "value": pl.Float64,
     **dict.fromkeys(SUMMARY, pl.Float64),
 }
-_YEAR = 365.25  # days, the calendar year Navigate counts steps in
+_YEAR = 365.25
 
 _VALUE = pl.col("value")
 
@@ -184,8 +180,7 @@ def read_runs(file: ResultsFile, runs: Sequence[str], plots: tuple[Plot, ...]) -
     names = [*runs, *(other for summary in summaries.values() for other in summary.values())]
     series = sorted({s for plot in plots for layer in plot.layers for s in (*layer.series, layer.per) if s})
     rows = file.scan_runs(names).filter(_wanted(series))
-    # a value that is not finite, such as an unbounded constraint or NaN, cannot be drawn, so it is missing; a file
-    # holds its values as 32- or 64-bit floats, and as 64-bit the lines of several files concatenate
+    # files hold 32- or 64-bit floats; as 64-bit the lines of several files concatenate
     rows = rows.with_columns(
         pl.col("run", *LABELS).cast(pl.Categorical),
         value=pl.when(_VALUE.is_finite()).then(_VALUE).cast(pl.Float64),
@@ -209,7 +204,6 @@ def prepare(plot: Plot, runs: Runs) -> pl.DataFrame:
     if not summary_runs:
         return lines.with_columns([pl.lit(None, pl.Float64).alias(column) for column in SUMMARY])
 
-    # a summary run's line becomes a column of the line of the run it summarises
     summarised = lines.filter(pl.col("run").is_in(summary_runs))
     lines = lines.filter(~pl.col("run").is_in(summary_runs))
 
@@ -253,7 +247,6 @@ def _lines(index: int, layer: Layer, plot: Plot, runs: Runs) -> pl.DataFrame:
     rows = _select(runs, layer.series)
 
     if layer.per_gj:
-        # a value whose fuel the file gives no heating value for cannot be converted
         rows = rows.with_columns(heating_value=_heating_value(runs.file)).filter(pl.col("heating_value").is_not_null())
         rows = rows.with_columns(value=_VALUE / pl.col("heating_value"))
 
@@ -265,8 +258,6 @@ def _lines(index: int, layer: Layer, plot: Plot, runs: Runs) -> pl.DataFrame:
     # a constant is text, not a category, so every text key is cast for the layers to concatenate
     rows = rows.with_columns(pl.col(*_TEXT).cast(pl.Categorical))
 
-    # one value per date, summed over the series that share a label; a date with no value stays missing, so the line
-    # breaks there
     values = rows.group_by(*_POINT).agg(pl.when(_VALUE.count() > 0).then(_VALUE.sum() * layer.scale))
 
     return _accumulate(values, runs.file.steps) if layer.cumulative else values
