@@ -11,10 +11,8 @@ and the raw rows as CSV without starting the viewer.
 It is a small Python package with a static page of plain JavaScript and no
 build step: Python 3.13+, Polars, Plotly, PyYAML and tqdm.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/fuelmix_dark.png">
-  <img alt="Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels" src=".github/assets/fuelmix_light.png">
-</picture>
+![Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels](.github/assets/fuelmix_light.png#gh-light-mode-only)
+![Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels](.github/assets/fuelmix_dark.png#gh-dark-mode-only)
 
 ## Install
 
