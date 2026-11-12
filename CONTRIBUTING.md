@@ -49,7 +49,7 @@ request.
   `noqa`, no `type: ignore`; fix the code, or change the rule for everyone in
   the configuration. Beyond that, match the file you are editing.
 - Update documentation when behavior changes: the README,
-  `plot_configs/README.md` and the headers of `plots.yaml`, `labels.yaml` and
+  `configs/README.md` and the headers of `plots.yaml`, `labels.yaml` and
   `theme.yaml` for user-facing changes, docstrings for code changes.
 
 ### Changelog
@@ -78,7 +78,7 @@ changelog.
 Before a pull request, run the checks under Getting started. The tests read
 `tests/fixtures/attribute_coverage.parquet`, the results file of Navigate's
 `attribute_coverage` deck, which touches every attribute: every plot of
-`plot_configs/plots.yaml` must have data in it, and draws in every view and
+`configs/plots.yaml` must have data in it, and draws in every view and
 panel, alone and with other runs. A new plot therefore needs a series
 Navigate writes. CI runs the same checks on the built wheel, and weekly on a
 file Navigate's `dev` branch writes.

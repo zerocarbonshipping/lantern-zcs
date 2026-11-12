@@ -4,7 +4,7 @@ Lantern is a local web app that plots the results of
 [Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
 open-source maritime transition model. Every Navigate run writes a Parquet
 results file; Lantern opens one or many of them, prepares the plots that
-[`plots.yaml`](plot_configs/plots.yaml) declares and serves them as interactive
+[`plots.yaml`](configs/plots.yaml) declares and serves them as interactive
 Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
@@ -76,7 +76,7 @@ other two are part of the package.
 
 | File | Where | What it holds | Manual |
 |---|---|---|---|
-| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`plot_configs/plots.yaml`](plot_configs/plots.yaml) | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`plot_configs/README.md`](plot_configs/README.md) |
+| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`configs/plots.yaml`](configs/plots.yaml) | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`configs/README.md`](configs/README.md) |
 | [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
 | [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
 
@@ -94,7 +94,7 @@ colour name is.
 
 Lantern checks all three at start and on Refresh and stops at a mistake with
 the file and line, the plot or the label; the
-[rules of thumb](plot_configs/README.md#rules-of-thumb) list what it checks.
+[rules of thumb](configs/README.md#rules-of-thumb) list what it checks.
 
 
 ## Disclaimer

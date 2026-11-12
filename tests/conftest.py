@@ -32,7 +32,7 @@ SUMMARIES = {"a": {"median": "a_median", "low": "a_p05", "high": "a_p95"}}
 def plots_yaml(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
     """Read the repository's plots.yaml, from a copy, never one in the working or home folder."""
     path = tmp_path_factory.mktemp("config") / "plots.yaml"
-    shutil.copy(ROOT / "plot_configs" / "plots.yaml", path)
+    shutil.copy(ROOT / "configs" / "plots.yaml", path)
 
     # PLOTS_FILES is fixed when lantern.config is imported, so changing folder alone would not do
     with pytest.MonkeyPatch.context() as patch:
