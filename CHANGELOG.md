@@ -30,6 +30,9 @@ describes it. The entries below are the changes since the rewrite was merged
   each fleet, and names the runs of Navigate's reference scenarios.
 
 ### Changed
+- A results file of a schema version Lantern does not read stops with a
+  message naming the version and what to upgrade; it opened without units
+  or heating values. (#9)
 - Lantern requires Python 3.13 or newer, as Navigate does.
 - Hovered values show 3 significant figures with thousands grouped, such as
   12,300,000,000 or 0.0123; the CSV downloads keep every digit.

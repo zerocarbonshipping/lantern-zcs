@@ -39,6 +39,8 @@ LINES = {
     **dict.fromkeys(SUMMARY, pl.Float64),
 }
 _YEAR = 365.25
+# the versions of the results file layout, its schema_version, this Lantern reads
+SCHEMA_VERSIONS = (1,)
 
 _VALUE = pl.col("value")
 
@@ -91,6 +93,8 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
         if missing:
             raise ResultsFileError(f"'{name}' lacks the columns {', '.join(missing)}")
 
+        _check_schema(meta, name)
+
         compiled = "run" in schema
         runs = _runs(scan, name) if compiled else [name]
         summaries = _summaries(meta, name)
@@ -115,6 +119,20 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
         meta.get("plant_fuel", {}),
         compiled,
     )
+
+
+def _check_schema(meta: dict[str, Any], name: str) -> None:
+    """Raise unless the file's schema version is one this Lantern reads, saying which tool to upgrade."""
+    found = meta.get("schema_version")
+    if found in SCHEMA_VERSIONS:
+        return
+
+    newer = isinstance(found, int) and found > max(SCHEMA_VERSIONS)
+    remedy = "upgrade Lantern" if newer else "write it again with a newer Navigate or Horizon"
+    written = f"results schema {found}" if found is not None else "no results schema"
+    readable = ", ".join(str(version) for version in SCHEMA_VERSIONS)
+
+    raise ResultsFileError(f"'{name}' has {written}; this Lantern reads schema {readable}: {remedy}")
 
 
 def _source(source: Path | bytes) -> Path | io.BytesIO:
