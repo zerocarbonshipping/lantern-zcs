@@ -1,7 +1,10 @@
-# Lantern's plot catalogue, read from the folder Lantern is started in, else from
-# the home folder. README.md next to it is the manual; the names, colours
-# and order of the labels are in the package's labels.yaml, the colours and the
-# font in its theme.yaml. Quote text YAML would read otherwise: "no", "2030".
+# Lantern's plot catalogue. Lantern reads plots.yaml from the folder it is started
+# in, else from the home folder, else the one it ships with; `lantern --init`
+# writes a copy of that one into the current folder, to edit. The manual is
+# configs/README.md in Lantern's repository,
+# https://github.com/zerocarbonshipping/lantern-zcs; the names, colours and order
+# of the labels are in the package's labels.yaml, the colours and the font in its
+# theme.yaml. Quote text YAML would read otherwise: "no", "2030".
 
 # display names and colours of runs, by the run's name within its file: here the
 # reference scenarios in Navigate's simulations/scenarios

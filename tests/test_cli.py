@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+from importlib.resources import files
 from typing import TYPE_CHECKING
 
 import polars as pl
@@ -108,14 +110,29 @@ def test_missing_path(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFix
     assert "no such file or folder" in capsys.readouterr().err
 
 
-def test_entry_point(single: Path, plots_yaml: Path, working_folder: Path) -> None:
-    """The installed lantern command runs, reading plots.yaml from the folder it is started in."""
-    shutil.copy(plots_yaml, working_folder)
+def test_init(working_folder: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """--init writes the packaged plots.yaml into the current folder, and leaves one already there alone."""
+    written = working_folder / "plots.yaml"
+
+    assert lantern(monkeypatch, "--init") == 0
+    assert written.read_bytes() == files("lantern").joinpath("plots.yaml").read_bytes()
+
+    written.write_text("edited")
+
+    assert lantern(monkeypatch, "--init") == 1
+    assert "'plots.yaml' is there already" in capsys.readouterr().err
+    assert written.read_text() == "edited"
+
+
+def test_entry_point(single: Path, working_folder: Path) -> None:
+    """The installed lantern command runs where no folder has a plots.yaml, as after a fresh install."""
     command = shutil.which("lantern")
 
     assert command, "lantern is not installed"
 
-    done = subprocess.run([command, str(single), "--list"], capture_output=True, text=True, check=False)
+    # the home folder, by its name on Linux and macOS and on Windows, is the empty working folder
+    home = {"HOME": str(working_folder), "USERPROFILE": str(working_folder)}
+    done = subprocess.run([command, str(single), "--list"], capture_output=True, text=True, check=False, env=os.environ | home)
 
     assert done.returncode == 0, done.stderr
     assert "main_emission_absolute" in done.stdout

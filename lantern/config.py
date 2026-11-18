@@ -1,8 +1,9 @@
 """
 Read the configuration: plots.yaml and the packaged labels.yaml and theme.yaml.
 
-plots.yaml (what to plot) comes from the working folder or the home folder; the packaged labels.yaml gives the series
-names, colours and order and theme.yaml the colours, and plots.yaml can override both entry by entry.
+plots.yaml (what to plot) comes from the working folder or the home folder, else from the package; the packaged
+labels.yaml gives the series names, colours and order and theme.yaml the colours, and plots.yaml can override both entry
+by entry.
 """
 
 from __future__ import annotations
@@ -103,7 +104,8 @@ def load_config() -> Config:
     """
     Read plots.yaml and the packaged labels.yaml and theme.yaml.
 
-    plots.yaml is the first of PLOTS_FILES there is; labels.yaml and theme.yaml come with the entries it overrides.
+    plots.yaml is the first of PLOTS_FILES there is, else the packaged one; labels.yaml and theme.yaml come with the
+    entries it overrides.
     """
     plots = _catalogue()
     runs = _named(plots.pop(_RUNS, None) or {}, f"plots.yaml: {_RUNS}", "run")
@@ -148,13 +150,30 @@ def _named(raw: object, where: str, what: str) -> dict[str, dict[str, str]]:
     return entries
 
 
+def write_catalogue(path: Path) -> None:
+    """Write the packaged plots.yaml to the path, as it is, to edit; a file already there is left alone."""
+    if path.exists():
+        raise FileExistsError(f"'{path}' is there already; --init does not overwrite it")
+
+    path.write_bytes(files("lantern").joinpath("plots.yaml").read_bytes())
+    print(f"Wrote Lantern's own plots.yaml to {path}", flush=True)
+
+
 def _catalogue() -> dict[str, Any]:
-    """Read the entries of the first plots.yaml there is, in the working folder or the home folder."""
+    """
+    Read the entries of the first plots.yaml there is, in the working folder or the home folder, else the packaged one.
+
+    Which one is printed, as a file in either folder hides the packaged one and what it gains with a new version.
+    """
     for path in PLOTS_FILES:
         if path.is_file():
+            print(f"Plots from {path}", flush=True)
+
             return _read(path.read_text("utf-8"), str(path))
 
-    raise ConfigError(f"no plots.yaml in the working folder or the home folder: {' or '.join(map(str, PLOTS_FILES))}")
+    print("Plots from Lantern's own plots.yaml; lantern --init writes a copy to edit", flush=True)
+
+    return _package("plots.yaml")
 
 
 def _package(name: str) -> dict[str, Any]:

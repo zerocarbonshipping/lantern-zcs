@@ -1,4 +1,4 @@
-"""plots.yaml: the repository's reads, and a mistake in one stops with a message that says where, not a traceback."""
+"""plots.yaml: the packaged one reads, and a mistake in one stops with a message that says where, not a traceback."""
 
 from __future__ import annotations
 
@@ -16,8 +16,8 @@ if TYPE_CHECKING:
 PLOT = "main:\n  emission:\n    title: WTW emissions\n    series: global.total_equivalent_wtw\n"
 
 
-def test_repository_plots() -> None:
-    """The repository's plots.yaml reads, with plot ids made of section and key."""
+def test_packaged_plots() -> None:
+    """The packaged plots.yaml reads, with plot ids made of section and key."""
     plots = load_config().plots
 
     assert plots[0].id == "main_emission_absolute"
@@ -78,9 +78,20 @@ def test_mistake(text: str, message: str, tmp_path: Path, monkeypatch: pytest.Mo
         load_config()
 
 
-def test_no_plots_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Without a plots.yaml, Lantern says where it looked."""
-    monkeypatch.setattr(config, "PLOTS_FILES", (tmp_path / "plots.yaml",))
+def test_plots_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    """Lantern reads the working folder's plots.yaml, else the home folder's, else the packaged one, and says which."""
+    working, home = tmp_path / "working.yaml", tmp_path / "home.yaml"
+    monkeypatch.setattr(config, "PLOTS_FILES", (working, home))
 
-    with pytest.raises(ConfigError, match=re.escape("no plots.yaml in the working folder or the home folder")):
-        load_config()
+    assert load_config().plots[0].id == "main_emission_absolute"
+    assert "Plots from Lantern's own plots.yaml" in capsys.readouterr().out
+
+    home.write_text(PLOT.replace("emission:", "home:"))
+
+    assert [plot.id for plot in load_config().plots] == ["main_home"]
+    assert f"Plots from {home}" in capsys.readouterr().out
+
+    working.write_text(PLOT)
+
+    assert [plot.id for plot in load_config().plots] == ["main_emission"]
+    assert f"Plots from {working}" in capsys.readouterr().out

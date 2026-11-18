@@ -78,7 +78,7 @@ changelog.
 Before a pull request, run the checks under Getting started. The tests read
 `tests/fixtures/attribute_coverage.parquet`, the results file of Navigate's
 `attribute_coverage` deck, which touches every attribute: every plot of
-`configs/plots.yaml` must have data in it, and draws in every view and
+`lantern/plots.yaml` must have data in it, and draws in every view and
 panel, alone and with other runs. A new plot therefore needs a series
 Navigate writes. CI runs the same checks on the built wheel, and weekly on a
 file Navigate's `dev` branch writes.

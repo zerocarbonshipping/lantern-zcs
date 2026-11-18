@@ -2,7 +2,8 @@
 lantern [PATH ...]: open the viewer with the results files at PATH, a folder loading every .parquet below it.
 
 With --plot or --data, write a plot to plots/ or the rows to data.csv in the current folder instead of serving them.
---plot draws one plot, or one panel of it, of each run or of runs together, by the ids --list prints.
+--plot draws one plot, or one panel of it, of each run or of runs together, by the ids --list prints. --init writes the
+plots.yaml Lantern ships with into the current folder, to edit.
 """
 
 from __future__ import annotations
@@ -15,7 +16,7 @@ import webbrowser
 from pathlib import Path
 
 from lantern import export
-from lantern.config import ConfigError
+from lantern.config import ConfigError, write_catalogue
 from lantern.data import ResultsFileError
 from lantern.server import make_server
 from lantern.session import Session
@@ -23,6 +24,7 @@ from lantern.session import Session
 PORT = 8050
 PLOTS = Path("plots")
 DATA = Path("data.csv")
+CATALOGUE = Path("plots.yaml")
 _PLOT = re.compile(r"([^\[\],]+)(?:\[([^\[\]]*)\](?:\[([^\[\]]*)\])?)?")
 
 
@@ -54,13 +56,21 @@ def main() -> int:
     )
     parser.add_argument("--list", action="store_true", help="print the runs and the ids and panels of the plots with data")
     parser.add_argument("--data", action="store_true", help=f"write the rows of the results files as one CSV, {DATA}")
+    parser.add_argument(
+        "--init",
+        action="store_true",
+        help=f"write the {CATALOGUE} Lantern ships with into the current folder, to edit; one already there is kept",
+    )
     args = parser.parse_args()
 
     try:
+        if args.init:
+            write_catalogue(CATALOGUE)
+
         if args.data:
             export.rows(args.paths, DATA)
 
-        if args.data and not (args.plot or args.list):
+        if (args.init or args.data) and not (args.plot or args.list):
             return 0
 
         session = Session(args.paths)

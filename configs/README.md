@@ -1,12 +1,19 @@
 # The plot catalogue: `plots.yaml`
 
-[`plots.yaml`](plots.yaml) lists every plot Lantern shows: which series of the
-results it draws, how, and in which panels. Lantern reads it from the folder it
-is started in, or, if there is none, from the home folder, so a study can carry
-its own catalogue over a general one; this repository's is in this folder. Display names, colours and order
-of the series are in [`lantern/labels.yaml`](../lantern/labels.yaml) and the
-colours in [`lantern/theme.yaml`](../lantern/theme.yaml), both part of the
-package; `plots.yaml` can override their entries, see
+[`plots.yaml`](../lantern/plots.yaml) lists every plot Lantern shows: which
+series of the results it draws, how, and in which panels. Lantern reads it from
+the folder it is started in, or, if there is none, from the home folder, so a
+study can carry its own catalogue over a general one. With neither it reads
+the one it ships with, [`lantern/plots.yaml`](../lantern/plots.yaml), and
+`lantern --init` writes a copy of that into the current folder, to edit. A
+file in either folder replaces the shipped catalogue whole, so it does not
+gain the plots a new version of Lantern adds; Lantern prints at start which
+file it reads.
+
+Display names, colours and order of the series are in
+[`lantern/labels.yaml`](../lantern/labels.yaml) and the colours in
+[`lantern/theme.yaml`](../lantern/theme.yaml), both part of the package;
+`plots.yaml` can override their entries, see
 [Labels and theme](#labels-and-theme). A change takes effect on the next start
 or Refresh.
 
@@ -148,8 +155,9 @@ entries of the package's `labels.yaml` by label, in the same form, and adds
 labels it does not have, after its own; `theme` overrides entries of the
 package's `theme.yaml`: `swatches` by colour name, and `palette` and `font`
 as a whole. The font is the figures' text, `family`, `size`, `weight` and
-`color` as Plotly takes them; the weight is a number, 300 for light. Both keys are empty in this repository's `plots.yaml`, with
-the examples commented out:
+`color` as Plotly takes them; the weight is a number, 300 for light. Both keys
+are empty in the `plots.yaml` Lantern ships with, with the examples commented
+out:
 
 ```yaml
 labels:

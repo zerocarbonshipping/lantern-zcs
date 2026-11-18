@@ -4,7 +4,7 @@ Lantern is a local web app that plots the results of
 [Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
 open-source maritime transition model. Every Navigate run writes a Parquet
 results file; Lantern opens one or many of them, prepares the plots that
-[`plots.yaml`](configs/plots.yaml) declares and serves them as interactive
+[`plots.yaml`](lantern/plots.yaml) declares and serves them as interactive
 Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
@@ -28,6 +28,7 @@ lantern study/                  # every .parquet below study/
 lantern --data my_run.parquet   # Export plot data to .csv
 lantern --list my_run.parquet   # print the runs and ids of the plots with data
 lantern --plot 'fleet_speed' e2e.parquet  # generate the fleet speed plot .html
+lantern --init                  # write Lantern's plots.yaml here, to edit
 
 # Example Custom Plot Exports
 lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' my_run.parquet   
@@ -43,6 +44,7 @@ lantern my_run.parquet \
 | `--plot ID[RUN,...][PANEL]` | no viewer: write a plot as an interactive HTML page, see [Writing plots](#writing-plots) |
 | `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
 | `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder |
+| `--init` | no viewer: write the `plots.yaml` Lantern ships with into the current folder, to edit; one already there is kept, with an error |
 | `-h`, `--help` | the arguments |
 
 The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
@@ -72,16 +74,17 @@ load plotly.js from the internet. Quote the bracket forms in shells that expand
 
 ## Configuration
 
-Three YAML files. The catalogue is the user's and travels with a study; the
-other two are part of the package.
+Three YAML files. The catalogue ships with the package and a study can carry
+its own; the other two are part of the package.
 
 | File | Where | What it holds | Manual |
 |---|---|---|---|
-| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder; this repository's is [`configs/plots.yaml`](configs/plots.yaml) | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`configs/README.md`](configs/README.md) |
+| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder, or else the package: [`lantern/plots.yaml`](lantern/plots.yaml), which `lantern --init` copies into the current folder, to edit | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`configs/README.md`](configs/README.md) |
 | [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
 | [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
 
-Without a `plots.yaml` in either place Lantern stops and says so.
+Without a `plots.yaml` in either folder Lantern reads the one it ships with;
+it prints at start which file it reads.
 
 A series in `plots.yaml` is `kind.attribute`, e.g. `fleet.newbuilds`. What
 can be plotted is what the results file holds: Navigate's reference manual

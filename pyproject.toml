@@ -42,7 +42,7 @@ Repository = "https://github.com/zerocarbonshipping/lantern-zcs"
 include = ["lantern*"]
 
 [tool.setuptools.package-data]
-lantern = ["labels.yaml", "theme.yaml", "static/*"]
+lantern = ["plots.yaml", "labels.yaml", "theme.yaml", "static/*"]
 
 [project.scripts]
 lantern = "lantern.__main__:main"

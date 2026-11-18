@@ -14,6 +14,11 @@ describes it. The entries below are the changes since the rewrite was merged
 (#5).
 
 ### Added
+- Lantern ships with its plot catalogue, `lantern/plots.yaml` in the
+  repository, formerly `configs/plots.yaml`, and reads it where neither the
+  working folder nor the home folder has a `plots.yaml`; it used to stop.
+- `--init` writes a copy of that catalogue into the current folder, to edit;
+  at start Lantern prints which `plots.yaml` it reads.
 - `per: kind.attribute` divides a plot by another series of the run, such as
   expenses per cargo-mile. (#7)
 - A button in a figure's toolbar shares one y axis across its panels, so

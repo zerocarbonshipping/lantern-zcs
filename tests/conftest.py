@@ -1,5 +1,5 @@
 """
-Fixtures: a Navigate results file of one run, a compiled file made from it, and the repository's plots.yaml.
+Fixtures: a Navigate results file of one run, a compiled file made from it, and the plots.yaml Lantern ships with.
 
 fixtures/attribute_coverage.parquet is the results file of Navigate's attribute_coverage deck, which touches every
 attribute of the model, so every plot of plots.yaml has data in it. The weekly navigate workflow makes it again from
@@ -11,7 +11,6 @@ Navigate's dev branch, in the navigate-zcs repository:
 from __future__ import annotations
 
 import json
-import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -22,22 +21,18 @@ from lantern import config
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
-ROOT = Path(__file__).parent.parent
 SINGLE = Path(__file__).parent / "fixtures" / "attribute_coverage.parquet"
 SCALES = {"a": 1.0, "b": 2.0, "a_median": 1.0, "a_p05": 0.8, "a_p95": 1.2}
 SUMMARIES = {"a": {"median": "a_median", "low": "a_p05", "high": "a_p95"}}
 
 
 @pytest.fixture(scope="session", autouse=True)
-def plots_yaml(tmp_path_factory: pytest.TempPathFactory) -> Iterator[Path]:
-    """Read the repository's plots.yaml, from a copy, never one in the working or home folder."""
-    path = tmp_path_factory.mktemp("config") / "plots.yaml"
-    shutil.copy(ROOT / "configs" / "plots.yaml", path)
-
+def packaged_plots_yaml() -> Iterator[None]:
+    """Read the plots.yaml Lantern ships with, never one in the working or home folder."""
     # PLOTS_FILES is fixed when lantern.config is imported, so changing folder alone would not do
     with pytest.MonkeyPatch.context() as patch:
-        patch.setattr(config, "PLOTS_FILES", (path,))
-        yield path
+        patch.setattr(config, "PLOTS_FILES", ())
+        yield
 
 
 @pytest.fixture(autouse=True)
