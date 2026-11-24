@@ -40,16 +40,20 @@ lantern my_run.parquet \
 
 | Argument | Meaning |
 |---|---|
-| `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder |
+| `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder, but a Horizon archive |
 | `--plot ID[RUN,...][PANEL]` | no viewer: write a plot as an interactive HTML page, see [Writing plots](#writing-plots) |
 | `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
 | `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder |
 | `--init` | no viewer: write the `plots.yaml` Lantern ships with into the current folder, to edit; one already there is kept, with an error |
+| `--version` | print the Lantern version and the results and study schemas it reads |
 | `-h`, `--help` | the arguments |
 
 The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
 file that is not a results file, a bad YAML value, an unknown plot, run or
-panel, print `Error: ...` and exit with 1. The viewer listens on
+panel, print `Error: ...` and exit with 1. So does a file of a results or study
+schema Lantern does not read, naming what to upgrade: Navigate's
+[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CONTRIBUTING.md#versions-and-releases)
+says which tool versions which file. The viewer listens on
 `127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
 
 ### Writing plots

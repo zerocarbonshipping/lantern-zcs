@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -102,6 +103,28 @@ def test_parquet_without_columns(
 
     assert lantern(monkeypatch, path, "--list") == 1
     assert "'other' lacks the columns kind, node, attribute, key1, key2, date" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize(
+    ("version", "remedy"),
+    [(2, "upgrade Lantern"), (0, "write it again with a newer Navigate or Horizon")],
+    ids=["newer", "older"],
+)
+def test_other_schema(
+    version: int,
+    remedy: str,
+    single: Path,
+    working_folder: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A results file of a schema version Lantern does not read stops with a message naming what to upgrade."""
+    meta = json.loads(pl.read_parquet_metadata(single)["navigate"])
+    path = working_folder / "other.parquet"
+    pl.read_parquet(single).write_parquet(path, metadata={"navigate": json.dumps(meta | {"schema_version": version})})
+
+    assert lantern(monkeypatch, path, "--list") == 1
+    assert f"'other' has results schema {version}; this Lantern reads schema 1: {remedy}" in capsys.readouterr().err
 
 
 def test_missing_path(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
