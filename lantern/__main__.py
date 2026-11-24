@@ -2,8 +2,9 @@
 lantern [PATH ...]: open the viewer with the results files at PATH, a folder loading every .parquet below it.
 
 With --plot or --data, write a plot to plots/ or the rows to data.csv in the current folder instead of serving them.
---plot draws one plot, or one panel of it, of each run or of runs together, by the ids --list prints. --init writes the
-plots.yaml Lantern ships with into the current folder, to edit. --version names the Lantern and the schemas it reads.
+--plot draws one plot, or one panel of it, of each run or of runs together, by the ids --list prints; --scale sizes
+its pages. --init writes the plots.yaml Lantern ships with into the current folder, to edit. --version names the
+Lantern and the schemas it reads.
 """
 
 from __future__ import annotations
@@ -41,6 +42,16 @@ def _plot(value: str) -> export.Spec:
     return plot_id.strip(), runs, panel.strip() if panel else None
 
 
+def _scale(value: str) -> float:
+    """Argparse type: a factor above 0; argparse reports one that is not a number."""
+    scale = float(value)
+
+    if not scale > 0:
+        raise argparse.ArgumentTypeError(f"expected a number above 0, got {value!r}")
+
+    return scale
+
+
 def _version_line() -> str:
     """Name the Lantern and the results and study schemas it reads."""
     results = ", ".join(str(number) for number in SCHEMA_VERSIONS)
@@ -62,6 +73,14 @@ def main() -> int:
         help=f"write one plot as an HTML page into {PLOTS}/, of each run, or of the runs in brackets drawn "
         "together, and only the panel in the second brackets if given; repeat it for more, by the "
         "ids, runs and panels --list prints, and quote it where the shell expands []",
+    )
+    parser.add_argument(
+        "--scale",
+        type=_scale,
+        default=1.0,
+        metavar="FACTOR",
+        help="with --plot, draw the text, margins and panel height of each page at FACTOR times their size, "
+        "such as 0.8 for a small frame",
     )
     parser.add_argument("--list", action="store_true", help="print the runs and the ids and panels of the plots with data")
     parser.add_argument("--data", action="store_true", help=f"write the rows of the results files as one CSV, {DATA}")
@@ -88,7 +107,7 @@ def main() -> int:
             sys.stdout.write(export.listing(session))
 
         if args.plot:
-            export.plots(session, PLOTS, args.plot)
+            export.plots(session, PLOTS, args.plot, args.scale)
 
         if args.plot or args.list:
             return 0

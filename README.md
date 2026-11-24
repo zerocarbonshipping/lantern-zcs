@@ -42,6 +42,7 @@ lantern my_run.parquet \
 |---|---|
 | `PATH ...` | results files, or folders; a folder loads every `.parquet` file in it and below, named by its path in the folder, but a Horizon archive |
 | `--plot ID[RUN,...][PANEL]` | no viewer: write a plot as an interactive HTML page, see [Writing plots](#writing-plots) |
+| `--scale FACTOR` | with `--plot`: draw the text, margins and panel height of each page at `FACTOR` times their size, such as `0.8` for a small frame |
 | `--list` | no viewer: print the loaded runs and the id, section, title and panels of every plot with data, for `--plot` |
 | `--data` | no viewer: write every row of the files, with a `run` column, as `data.csv` in the current folder |
 | `--init` | no viewer: write the `plots.yaml` Lantern ships with into the current folder, to edit; one already there is kept, with an error |

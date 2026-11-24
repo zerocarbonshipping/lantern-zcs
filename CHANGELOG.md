@@ -14,6 +14,8 @@ describes it. The entries below are the changes since the rewrite was merged
 (#5).
 
 ### Added
+- `--scale FACTOR` draws the pages `--plot` writes with their text,
+  margins and panel height at that factor, such as `0.8` for a small frame.
 - `--version` prints the Lantern version and the results and study schemas
   it reads.
 - Lantern ships with its plot catalogue, `lantern/plots.yaml` in the

@@ -16,16 +16,22 @@ from lantern import data
 if TYPE_CHECKING:
     from pathlib import Path
 
+    import plotly.graph_objects as go
+
     from lantern.session import Session
 
 type Spec = tuple[str, list[str] | None, str | None]
+
+# Plotly's default font size and margins, which a figure without its own keeps
+_FONT_SIZE = 12
+_MARGINS = {"l": 80, "r": 80, "t": 100, "b": 80}
 
 
 class ExportError(Exception):
     """An export that cannot be written."""
 
 
-def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
+def plots(session: Session, folder: Path, specs: list[Spec], scale: float = 1.0) -> None:
     """
     Write plots as HTML pages, as the viewer opens them: a plot with views in its first view.
 
@@ -33,7 +39,7 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
     else one figure of the runs drawn together, as the viewer compares them, and only the panel if one is given, as
     the viewer enlarges it; the paths written are printed. A run's own plot is <folder>/<run>/<plot id>.html, one of
     several runs <folder>/<plot id>/<run>+<run>.html, a run named as in its file, and a panel's "_<panel>" before
-    ".html".
+    ".html". Scale sizes the text, margins and panel height of each page, as zooming would.
     """
     every_run = session.runs
     names = {run: name.replace("/", "_") for run, name in session.short_names(every_run).items()}
@@ -70,6 +76,7 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
         path = _path(folder, [names[run] for run in runs], plot_id, panel)
         path.parent.mkdir(parents=True, exist_ok=True)
         figure = session.draw(plot_id, list(runs), None, panel)
+        _scale(figure, scale)
         # the page fills the window, as the viewer does, and a taller panel grid keeps its own height and scrolls
         height = figure.layout.height
         figure.layout.height = None
@@ -84,6 +91,21 @@ def plots(session: Session, folder: Path, specs: list[Spec]) -> None:
 
     if skipped:
         print(f"No data, so not written: {', '.join(skipped)}", flush=True)
+
+
+def _scale(figure: go.Figure, scale: float) -> None:
+    """Multiply the figure's font sizes, margins and height by scale."""
+    font = figure.layout.font.size or _FONT_SIZE
+    margin = figure.layout.margin
+    figure.update_layout(
+        font_size=font * scale,
+        margin={side: (margin[side] if margin[side] is not None else size) * scale for side, size in _MARGINS.items()},
+        height=figure.layout.height * scale,
+    )
+
+    # the panel titles carry a size of their own
+    for annotation in figure.layout.annotations:
+        annotation.font.size = (annotation.font.size or font) * scale
 
 
 def listing(session: Session) -> str:
