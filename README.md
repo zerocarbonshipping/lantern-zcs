@@ -101,6 +101,21 @@ the file and line, the plot or the label; the
 [rules of thumb](configs/README.md#rules-of-thumb) list what it checks.
 
 
+## Contributing
+
+Lantern follows Navigate's
+[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CONTRIBUTING.md#horizon-and-lantern) and
+[code style](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CODESTYLE.md): pull requests target `dev`, and
+`CHANGELOG.md` records what a user would notice. Set up and check a change with:
+
+```bash
+pip install -e ".[dev]"
+ruff check lantern tests && ruff format --check lantern tests && mypy && pytest
+```
+
+The tests do not look at the plots: open a results file with `lantern PATH`, look at the plots a change
+touches, and describe any difference in the pull request.
+
 ## Disclaimer
 
 Lantern is an open-source analytical tool intended for research and scenario
@@ -116,8 +131,4 @@ judgement when interpreting any outputs.
 
 Copyright 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping.
 
-The `lantern` package and all build and tooling files are licensed under the
-[Apache License 2.0](LICENSES/Apache-2.0.txt) (see also [LICENSE](LICENSE));
-the documentation under [CC-BY-4.0](LICENSES/CC-BY-4.0.txt). Every file
-declares its license through an `SPDX-License-Identifier` header or
-[REUSE.toml](REUSE.toml), following the [REUSE specification](https://reuse.software/).
+Lantern is licensed under the [Apache License 2.0](LICENSE).

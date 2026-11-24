@@ -48,6 +48,7 @@ lantern = ["plots.yaml", "labels.yaml", "theme.yaml", "static/*"]
 lantern = "lantern.__main__:main"
 
 [tool.ruff]
+# Navigate's rule set (.ruff.toml in navigate-zcs), at this repository's line length
 line-length = 128
 target-version = "py313"
 
@@ -72,13 +73,22 @@ select = [
     "D",   # pydocstyle
     "TC",  # flake8-type-checking
     "SLF", # flake8-self
-    "ICN", # canonical import aliases (polars as pl, ...)
-    "PGH", # bans blanket noqa/type-ignore
+    "NPY", # numpy-specific checks (deprecated aliases, legacy random API)
+    "ICN", # canonical import aliases (numpy as np, polars as pl, ...)
+    "PGH", # bans blanket noqa/type-ignore; malformed mock assertions
+    "PT",  # pytest style and failure quality
     "G",   # flake8-logging-format: lazy % arguments, extra keys clear of LogRecord's
     "LOG", # flake8-logging: no root-logger calls, exc_info only in except handlers
     "RET", # flake8-return: no else after an exit, no assign-then-return
     "PTH", # flake8-use-pathlib: pathlib over os.path, os file calls and open()
-    "PT",  # flake8-pytest-style
+    "A",   # flake8-builtins: no name shadows a builtin or a standard-library module
+    "PLE", # pylint errors: code that fails at runtime (dunder returns, logging arity)
+    "PLW", # pylint warnings: no loop variable rebound in its body, no nested min/max
+    "PIE", # flake8-pie: no needless pass, spread or range start; unique enum values
+    "FURB", # refurb: the shorter idiom (or for if-else, sorted()[0] as min, ...)
+    "RSE", # flake8-raise: no parentheses on an exception raised without arguments
+    "FLY", # flynt: an f-string over joining a static list
+    "T10", # flake8-debugger: no breakpoint() or debugger imports
 ]
 extend-select = [
     "D213",    # multi-line docstring summaries start on the second line
@@ -86,8 +96,7 @@ extend-select = [
     "DOC102",  # every documented parameter exists in the signature
     "DOC202",  # no Returns section on a function that returns nothing
     "ERA001",  # no commented-out code
-    "PLW2901", # a loop variable is not rebound in the loop body
-    "PLW3301", # nested min/max calls are flattened into one
+    "TID252",  # imports are absolute (ban-relative-imports below)
 ]
 ignore = [
     "D105", # magic methods need no docstring
@@ -96,11 +105,18 @@ ignore = [
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
+[tool.ruff.lint.flake8-tidy-imports]
+# sibling-relative imports too, not only parent-relative ones
+ban-relative-imports = "all"
+
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
+# tests document themselves through their names and access private state of
+# the module under test (white-box testing is the suite convention)
+"tests/*" = ["D1", "SLF001"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
