@@ -12,6 +12,7 @@ from __future__ import annotations
 import io
 import json
 from dataclasses import dataclass
+from importlib.metadata import PackageNotFoundError, version
 from typing import TYPE_CHECKING, Any
 
 import polars as pl
@@ -41,6 +42,8 @@ LINES = {
 _YEAR = 365.25
 # the versions of the results file layout, its schema_version, this Lantern reads
 SCHEMA_VERSIONS = (1,)
+# the versions of the layout Horizon adds to a study file, its study_schema_version, this Lantern reads
+STUDY_SCHEMA_VERSIONS = (1,)
 
 _VALUE = pl.col("value")
 
@@ -95,7 +98,16 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
 
         _check_schema(meta, name)
 
+        if "sample" in schema:
+            raise ResultsFileError(f"'{name}' is a Horizon archive of every sample: open the study file instead")
+
+        _check_types(schema, name)
+
         compiled = "run" in schema
+
+        if compiled:
+            _check_study_schema(meta, name)
+
         runs = _runs(scan, name) if compiled else [name]
         summaries = _summaries(meta, name)
         runs = [run for run in runs if run not in {r for summary in summaries.values() for r in summary.values()}]
@@ -123,16 +135,53 @@ def open_file(source: Path | bytes, name: str) -> ResultsFile:
 
 def _check_schema(meta: dict[str, Any], name: str) -> None:
     """Raise unless the file's schema version is one this Lantern reads, saying which tool to upgrade."""
-    found = meta.get("schema_version")
-    if found in SCHEMA_VERSIONS:
+    _check_version(meta, name, "schema_version", "results schema", SCHEMA_VERSIONS, "a newer Navigate or Horizon")
+
+
+def _check_study_schema(meta: dict[str, Any], name: str) -> None:
+    """Raise unless a study file's own schema version is one this Lantern reads, saying which tool to upgrade."""
+    _check_version(meta, name, "study_schema_version", "study schema", STUDY_SCHEMA_VERSIONS, "a newer Horizon")
+
+
+def _check_version(meta: dict[str, Any], name: str, key: str, schema: str, readable: tuple[int, ...], writer: str) -> None:
+    """
+    Raise unless the version under the key is one this Lantern reads.
+
+    A newer version than Lantern reads asks for a newer Lantern, an older or missing one for the file written again by
+    the writer. The message ends with the tools that wrote and read the file.
+    """
+    found = meta.get(key)
+    if found in readable:
         return
 
-    newer = isinstance(found, int) and found > max(SCHEMA_VERSIONS)
-    remedy = "upgrade Lantern" if newer else "write it again with a newer Navigate or Horizon"
-    written = f"results schema {found}" if found is not None else "no results schema"
-    readable = ", ".join(str(version) for version in SCHEMA_VERSIONS)
+    newer = isinstance(found, int) and found > max(readable)
+    remedy = "upgrade Lantern" if newer else f"write it again with {writer}"
+    written = f"{schema} {found}" if found is not None else f"no {schema}"
+    versions = ", ".join(str(number) for number in readable)
+    tools = [f"Navigate {meta['navigate_version']}"] if "navigate_version" in meta else []
+    tools += [f"Horizon {meta['horizon_version']}"] if "horizon_version" in meta else []
+    origin = f"written by {' and '.join(tools)}, " if tools else ""
 
-    raise ResultsFileError(f"'{name}' has {written}; this Lantern reads schema {readable}: {remedy}")
+    raise ResultsFileError(
+        f"'{name}' has {written}; this Lantern reads schema {versions}: {remedy} ({origin}read by Lantern {lantern_version()})"
+    )
+
+
+def _check_types(schema: pl.Schema, name: str) -> None:
+    """Raise unless the file holds its dates as dates and its values as numbers."""
+    if schema["date"] != pl.Date:
+        raise ResultsFileError(f"'{name}' holds its dates as {schema['date']}, not as dates")
+
+    if not schema["value"].is_numeric():
+        raise ResultsFileError(f"'{name}' holds its values as {schema['value']}, not as numbers")
+
+
+def lantern_version() -> str:
+    """Return the version of the installed Lantern, or 'unknown' where it runs from a source tree not installed."""
+    try:
+        return version("lantern-zcs")
+    except PackageNotFoundError:
+        return "unknown"
 
 
 def _source(source: Path | bytes) -> Path | io.BytesIO:
@@ -166,7 +215,8 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
 
     for path in paths:
         if path.is_dir():
-            found.extend((f, f.relative_to(path).with_suffix("").as_posix()) for f in sorted(path.rglob("*.parquet")))
+            files = [f for f in sorted(path.rglob("*.parquet")) if not _is_archive(f)]
+            found.extend((f, f.relative_to(path).with_suffix("").as_posix()) for f in files)
 
         elif path.is_file():
             found.append((path, path.stem))
@@ -175,6 +225,14 @@ def results_files(paths: list[Path]) -> list[tuple[Path, str]]:
             raise FileNotFoundError(f"no such file or folder: '{path}'")
 
     return found
+
+
+def _is_archive(path: Path) -> bool:
+    """Whether a file in a folder is a Horizon archive, which a folder's files leave out; an unreadable file is not."""
+    try:
+        return "sample" in pl.read_parquet_schema(path)
+    except (OSError, pl.exceptions.PolarsError):
+        return False
 
 
 @dataclass(frozen=True)
@@ -321,7 +379,7 @@ def _heating_value(file: ResultsFile) -> pl.Expr:
     """
     Return the heating value, GJ/t, of a row's fuel: a plant's own fuel, else the fuel in key1, if the file gives it.
 
-    A compiled file carries no constants, so its rows have none.
+    A row whose fuel the file gives no heating value for has none.
     """
     plant_fuel = pl.col("node").replace_strict(file.plant_fuel, default=None, return_dtype=pl.String)
     fuel = pl.when(pl.col("kind") == "plant").then(plant_fuel).otherwise(pl.col("key1"))

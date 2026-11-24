@@ -61,6 +61,7 @@ def compiled(tmp_path_factory: pytest.TempPathFactory) -> Path:
         rows.select(pl.lit(run).alias("run"), pl.exclude("value"), pl.col("value") * scale) for run, scale in SCALES.items()
     ]
     path = tmp_path_factory.mktemp("compiled") / "study.parquet"
-    pl.concat(runs).write_parquet(path, metadata={"navigate": json.dumps(meta | {"summaries": SUMMARIES})})
+    study = {"study_schema_version": 1, "summaries": SUMMARIES}
+    pl.concat(runs).write_parquet(path, metadata={"navigate": json.dumps(meta | study)})
 
     return path

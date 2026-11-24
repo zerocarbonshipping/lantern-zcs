@@ -14,6 +14,8 @@ describes it. The entries below are the changes since the rewrite was merged
 (#5).
 
 ### Added
+- `--version` prints the Lantern version and the results and study schemas
+  it reads.
 - Lantern ships with its plot catalogue, `lantern/plots.yaml` in the
   repository, formerly `configs/plots.yaml`, and reads it where neither the
   working folder nor the home folder has a `plots.yaml`; it used to stop.
@@ -33,6 +35,9 @@ describes it. The entries below are the changes since the rewrite was merged
 - A results file of a schema version Lantern does not read stops with a
   message naming the version and what to upgrade; it opened without units
   or heating values. (#9)
+- A Horizon study file of a study schema Lantern does not read stops the same
+  way, and both messages name the Navigate, Horizon and Lantern that wrote
+  and read the file.
 - Lantern requires Python 3.13 or newer, as Navigate does.
 - Hovered values show 3 significant figures with thousands grouped, such as
   12,300,000,000 or 0.0123; the CSV downloads keep every digit.
@@ -53,6 +58,11 @@ describes it. The entries below are the changes since the rewrite was merged
   feed at a time, chosen in the view select, instead of a panel each.
 
 ### Fixed
+- A Horizon archive, which holds every sample of a study, stops with a
+  message instead of plotting the sum of its samples, and a folder leaves it
+  out.
+- A results file whose dates or values are of another type stops with a
+  message instead of a traceback.
 - A `plots.yaml` that is not a mapping of sections, such as a list, stops
   with an error instead of a traceback, as does a section, plot or layer
   that is not a mapping, and a plot without a title or a series.

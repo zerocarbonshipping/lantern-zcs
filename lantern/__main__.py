@@ -3,7 +3,7 @@ lantern [PATH ...]: open the viewer with the results files at PATH, a folder loa
 
 With --plot or --data, write a plot to plots/ or the rows to data.csv in the current folder instead of serving them.
 --plot draws one plot, or one panel of it, of each run or of runs together, by the ids --list prints. --init writes the
-plots.yaml Lantern ships with into the current folder, to edit.
+plots.yaml Lantern ships with into the current folder, to edit. --version names the Lantern and the schemas it reads.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from pathlib import Path
 
 from lantern import export
 from lantern.config import ConfigError, write_catalogue
-from lantern.data import ResultsFileError
+from lantern.data import SCHEMA_VERSIONS, STUDY_SCHEMA_VERSIONS, ResultsFileError, lantern_version
 from lantern.server import make_server
 from lantern.session import Session
 
@@ -41,10 +41,19 @@ def _plot(value: str) -> export.Spec:
     return plot_id.strip(), runs, panel.strip() if panel else None
 
 
+def _version_line() -> str:
+    """Name the Lantern and the results and study schemas it reads."""
+    results = ", ".join(str(number) for number in SCHEMA_VERSIONS)
+    study = ", ".join(str(number) for number in STUDY_SCHEMA_VERSIONS)
+
+    return f"Lantern {lantern_version()}, reads results schema {results}, study schema {study}"
+
+
 def main() -> int:
     """Load the given results and serve the viewer in the browser, or write the plots or the rows to files."""
     parser = argparse.ArgumentParser(prog="lantern", description="Browser viewer for Navigate results files.")
     parser.add_argument("paths", nargs="*", type=Path, metavar="PATH", help="results files, or folders of them")
+    parser.add_argument("--version", action="version", version=_version_line(), help="print the version and exit")
     parser.add_argument(
         "--plot",
         action="append",
