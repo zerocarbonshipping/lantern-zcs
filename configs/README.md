@@ -74,7 +74,7 @@ different ways, such as a value and its limit, lists its layers:
 | Key | Values | Meaning |
 |---|---|---|
 | `title` | text | heading of the plot. Required. |
-| `unit` | text | y-axis unit. Default: the file's unit of the first series. Give it when `scale`, `cumulative`, `per_gj` or `per` changes the unit. |
+| `unit` | text | y-axis unit. Default: the file's unit of the first series. Give it when `scale`, `cumulative`, `per_gj` or `per` changes the unit. `{currency}` in it is the currency of the first series, `EUR` of `EUR/t`; quote such a unit, as `"{currency}/GJ"`. |
 | `panels` | `node`, `attribute`, `key1`, `key2` | one panel per value of this column, titled by its label |
 | `select_view` | `node`, `attribute`, `key1`, `key2` | one view per value of this column, chosen in the select of the toolbar; the plot shows one at a time |
 | `y_axis` | `zero` (default), `fit` | whether the y axis starts at zero or fits the data; `fit` for values around zero or a narrow range |
@@ -247,12 +247,12 @@ Additions above and removals below zero:
         draw: stack
 ```
 
-A cost in USD/GJ from a per-ton price, one port at a time:
+A cost per GJ from a per-ton price, one port at a time:
 
 ```yaml
   bunker_price:
     title: Bunker price
-    unit: USD/GJ
+    unit: "{currency}/GJ"
     select_view: node
     per_gj: true
     series: port.bunker_price
@@ -264,7 +264,7 @@ and its miles nautical, 1/1.852 (km per nautical mile) times 1000:
 ```yaml
   expenses_per_work:
     title: What the ships paid per transport work
-    unit: USD per 1000 t-km
+    unit: "{currency} per 1000 t-km"
     draw: stack
     split_by: attribute
     per: fleet.cargo_miles

@@ -130,7 +130,7 @@ main:
 
   fuel_related_expenses_cumulative:
     title: Cumulative fuel expenses
-    unit: USD
+    unit: "{currency}"
     variants: [lines, stack]
     draw: stack
     split_by: attribute
@@ -155,7 +155,7 @@ main:
 
   expenses_cumulative:
     title: Cumulative expenses
-    unit: USD
+    unit: "{currency}"
     variants: [lines, stack]
     draw: stack
     split_by: attribute
@@ -334,7 +334,7 @@ fleet:
 
   investment_metric:
     title: Freight rates
-    unit: USD/1000 cargo-miles
+    unit: "{currency}/1000 cargo-miles"
     select_view: node
     layers:
       - series: vessel.investment_freight_rate
@@ -383,7 +383,7 @@ producer:
 plant:
   production_cost:
     title: Production cost
-    unit: USD/GJ
+    unit: "{currency}/GJ"
     select_view: node
     y_axis: fit
     layers:
@@ -398,7 +398,7 @@ plant:
 port:
   bunker_price:
     title: Bunker price
-    unit: USD/GJ
+    unit: "{currency}/GJ"
     select_view: node
     per_gj: true
     series: port.bunker_price
