@@ -4,6 +4,7 @@ abstract: "Browser viewer for Navigate results files: interactive Plotly plots o
 type: software
 license: Apache-2.0
 version: 2.0.0
+date-released: 2026-11-30
 repository-code: "https://github.com/zerocarbonshipping/lantern-zcs"
 authors:
   - given-names: Mathias
