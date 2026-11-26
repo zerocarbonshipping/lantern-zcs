@@ -9,65 +9,64 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ## [2.0.0] - Unreleased
 
 Lantern 2 is a rewrite: a local web app that plots the Parquet results files
-Navigate writes, of one run or many, a Horizon study included. The README
-describes it. The entries below are the changes since the rewrite was merged
-(#5).
+Navigate 1.1 and later write, of one run or many, a Horizon 2 study included,
+where Lantern 1 drew PNG plots of a Navigate report CSV. The README describes
+it; the entries below are the changes from 1.0.0.
 
 ### Added
-- `--scale FACTOR` draws the pages `--plot` writes with their text,
-  margins and panel height at that factor, such as `0.8` for a small frame.
-- `--version` prints the Lantern version and the results and study schemas
-  it reads.
-- Lantern ships with its plot catalogue, `lantern/plots.yaml` in the
-  repository, formerly `configs/plots.yaml`, and reads it where neither the
-  working folder nor the home folder has a `plots.yaml`; it used to stop.
-- `--init` writes a copy of that catalogue into the current folder, to edit;
-  at start Lantern prints which `plots.yaml` it reads.
+- `lantern [PATH ...]` opens the viewer in the browser on the results files at
+  PATH, a folder loading every `.parquet` below it; files can be added and
+  unloaded on the page, and Refresh reloads the configuration and PATH.
+- `--plot ID[RUN,...][PANEL]` writes a plot, of each run or of runs together,
+  as an interactive HTML page in `plots/`, and `--scale FACTOR` sizes its text
+  and panels; `--list` prints the runs and the ids and panels of the plots.
+- `--data` writes every row of the files, with a `run` column, as `data.csv`.
+- `--version` prints the Lantern version and the results and study schemas it
+  reads.
+- `plots.yaml` declares the plots: the one in the working folder, else in the
+  home folder, else the catalogue Lantern ships with. Lantern prints which it
+  reads; `configs/README.md` is its manual.
+- The packaged `labels.yaml` and `theme.yaml` name, order and colour the
+  series, and `plots.yaml` can override their entries.
 - `per: kind.attribute` divides a plot by another series of the run, such as
   expenses per cargo-mile. (#7)
-- `{currency}` in a plot's `unit` is the currency of its first series. The
-  catalogue's plots that set a unit in USD use it, so they label a run in
-  another currency in that currency. (#8)
-- A button in a figure's toolbar shares one y axis across its panels, so
-  they compare on one scale, and gives each its own again.
+- `{currency}` in a plot's `unit` is the currency of its first series, so the
+  catalogue labels money in the run's currency. (#8)
+- A Horizon study shows each scenario combination with the median and the 5
+  to 95 % band of its samples.
+- Ctrl-click compares runs, overlaid in a colour each, or in a column of panels
+  per run where colour already tells the series apart; `customize_runs` in
+  `plots.yaml` names runs and fixes their colours.
+- Clicking a panel enlarges it; a toolbar button shares one y axis across the
+  panels, and the modebar downloads the plot as PNG or SVG and its lines as CSV.
 - Theme buttons on the page: System, Bright or Dark, kept in the browser.
-  Dark recolours the page and the figures' background, text and grid; the
-  series keep their colours.
-- The repository's `plots.yaml` has WTW emissions by gas and the trade of
-  each fleet, and names the runs of Navigate's reference scenarios.
+- A file of a results or study schema Lantern does not read stops with a
+  message naming the version and the tool to upgrade, as do a Horizon archive
+  and a file that is not a results file. (#9)
 
 ### Changed
-- A results file of a schema version Lantern does not read stops with a
-  message naming the version and what to upgrade; it opened without units
-  or heating values. (#9)
-- A Horizon study file of a study schema Lantern does not read stops the same
-  way, and both messages name the Navigate, Horizon and Lantern that wrote
-  and read the file.
+- `--init` writes the catalogue Lantern ships with into the current folder as
+  `plots.yaml`, to edit, where it wrote a starter `lantern.toml`.
 - Lantern requires Python 3.13 or newer, as Navigate does.
-- Hovered values show 3 significant figures with thousands grouped, such as
-  12,300,000,000 or 0.0123; the CSV downloads keep every digit.
-- The oil labels, oil, fuel oil, HFO and crude oil, are lighter: `black_5`
-  in place of `black_7`; the LPG fuel type moves to `black_4`, as the LPG
-  fuel has.
-- The WTW emissions and intensity are `black_5` in place of `black_8`, as
-  oil is; supply, produced, constraints, non-compliance and thresholds
-  are `black_6` in place of `black_8`.
-- `--plot` writes interactive HTML pages instead of PNG; the `export` extra
-  and kaleido are no longer needed.
-- A colour in `labels.yaml`, `customize_runs` or the theme's palette must be
-  a colour name of the theme or a hex value, and a swatch a hex value;
-  Lantern stops with an error where an unknown name used to fall back to the
-  palette. (#6)
-- In the repository's `plots.yaml`, the fleet, vessel and plant plots of
-  several lines, and the feed consumption, show one fleet, vessel, plant or
-  feed at a time, chosen in the view select, instead of a panel each.
 
-### Fixed
-- A Horizon archive, which holds every sample of a study, stops with a
-  message instead of plotting the sum of its samples, and a folder leaves it
-  out.
-- A results file whose dates or values are of another type stops with a
-  message instead of a traceback.
-- A `plots.yaml` that is not a mapping of sections, such as a list, stops
-  with an error instead of a traceback, as does a section, plot or layer
-  that is not a mapping, and a plot without a title or a series.
+### Removed
+- The report CSV input, `combined_report.csv`: open the results file each
+  Navigate run writes, `<deck>.parquet`, or the study file `horizon collect`
+  writes.
+- `lantern.toml`, `LANTERN_CONFIG` and `--config`: `plots.yaml` declares the
+  plots.
+- `--mode`: a study shows its median and band. `--outdir`: `--plot` writes into
+  `plots/` in the current folder.
+- `--list-scenarios` and `--filter`: `--list` prints the runs, and the viewer
+  picks them. `--validate`: Lantern checks its YAML files at start.
+- Lantern's own percentile bands and representative runs, with
+  `percentiles.csv` and `representatives.csv`: Horizon's study file holds them.
+- PNG output and the pandas, numpy and kaleido dependencies: `--plot` writes
+  HTML, and the viewer downloads PNG.
+
+## [1.0.0] - 2026-08-18
+
+Initial public release of Lantern, an open-source visualization tool for
+scenario ensembles from the
+[Navigate](https://github.com/zerocarbonshipping/navigate-zcs) maritime
+transition model.
