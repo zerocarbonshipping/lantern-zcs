@@ -4,15 +4,15 @@ Lantern is a local web app that plots the results of
 [Navigate](https://github.com/zerocarbonshipping/navigate-zcs), the
 open-source maritime transition model. Every Navigate run writes a Parquet
 results file; Lantern opens one or many of them, prepares the plots that
-[`plots.yaml`](lantern/plots.yaml) declares and serves them as interactive
+[`plots.yaml`](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/lantern/plots.yaml) declares and serves them as interactive
 Plotly figures to the browser. It can also write the same plots as HTML pages
 and the raw rows as CSV without starting the viewer.
 
-It is a small Python package with a static page of plain JavaScript and no
-build step: Python 3.13+, Polars, Plotly, PyYAML and tqdm.
 
-![Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels](.github/assets/fuelmix_light.png#gh-light-mode-only)
-![Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels](.github/assets/fuelmix_dark.png#gh-dark-mode-only)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/zerocarbonshipping/lantern-zcs/main/.github/assets/fuelmix_dark.png">
+  <img alt="Fuel consumed by the fleet from 2026 to 2050, stacked by fuel: fuel oil gives way to bio-fuels, blue ammonia and e-fuels" src="https://raw.githubusercontent.com/zerocarbonshipping/lantern-zcs/main/.github/assets/fuelmix_light.png">
+</picture>
 
 ## Install
 
@@ -25,13 +25,13 @@ pip install lantern-zcs
 ```bash
 lantern my_run.parquet          # opens the viewer on that run
 lantern study/                  # every .parquet below study/
-lantern --data my_run.parquet   # Export plot data to .csv
+lantern --data my_run.parquet   # write every row of the run as data.csv
 lantern --list my_run.parquet   # print the runs and ids of the plots with data
 lantern --plot 'fleet_speed' e2e.parquet  # generate the fleet speed plot .html
 lantern --init                  # write Lantern's plots.yaml here, to edit
 
 # Example Custom Plot Exports
-lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' my_run.parquet   
+lantern --plot 'fleet_speed[e2e/none_main,e2e/nzf_main]' my_run.parquet
 lantern my_run.parquet \
     --plot 'main_emission_absolute' \
     --plot 'main_fuel_consumed_stacked' \
@@ -53,7 +53,7 @@ The switches combine: `--data --plot ID` writes both. Errors, a missing path, a
 file that is not a results file, a bad YAML value, an unknown plot, run or
 panel, print `Error: ...` and exit with 1. So does a file of a results or study
 schema Lantern does not read, naming what to upgrade: Navigate's
-[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CONTRIBUTING.md#versions-and-releases)
+[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/main/CONTRIBUTING.md#versions-and-releases)
 says which tool versions which file. The viewer listens on
 `127.0.0.1:8050`, or a free port when that is taken, and opens the browser.
 
@@ -79,38 +79,53 @@ load plotly.js from the internet. Quote the bracket forms in shells that expand
 
 ## Configuration
 
-Three YAML files. The catalogue ships with the package and a study can carry
-its own; the other two are part of the package.
+Lantern draws what `plots.yaml` declares. It reads the file from the folder it
+is started in, or, if there is none, from the home folder, so a study can carry
+its own. With neither it reads the one it ships with,
+[`lantern/plots.yaml`](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/lantern/plots.yaml); `lantern --init` writes a copy of
+that into the current folder, to edit. Lantern prints at start which file it
+reads. [`configs/README.md`](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/configs/README.md) is the manual.
 
-| File | Where | What it holds | Manual |
-|---|---|---|---|
-| `plots.yaml` | the folder Lantern is started in, or, if there is none, the home folder, or else the package: [`lantern/plots.yaml`](lantern/plots.yaml), which `lantern --init` copies into the current folder, to edit | the catalogue: every plot's series, layers, panels, views, unit and axis, grouped in sections. `customize_runs` names runs and fixes their colours; `labels` and `theme` override entries of the two files below | [`configs/README.md`](configs/README.md) |
-| [`lantern/labels.yaml`](lantern/labels.yaml) | the package | the display name and colour name of each label that tells series apart (fuels, fleets, plants, ...); the order of listing is the stacking and panel order | header of the file |
-| [`lantern/theme.yaml`](lantern/theme.yaml) | the package | the Center's colours: eight palettes in shades 0 to 8, such as `blue_5`, the palette for labels and runs without a colour, and the figures' font | header of the file |
+The file holds the catalogue: each plot's series, layers, panels, views, unit
+and axis, grouped in sections. A series is `kind.attribute`, e.g.
+`fleet.newbuilds`. What can be plotted is what the results file holds:
+Navigate's reference manual lists every series in that form, with its unit and
+keys, under
+[Results file: Results](https://zerocarbonshipping.github.io/navigate-zcs/reference_manual/results_file.html#results).
 
-Without a `plots.yaml` in either folder Lantern reads the one it ships with;
-it prints at start which file it reads.
+The names, colours and order of the series and the colours and font of the
+figures come with the package, in [`lantern/labels.yaml`](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/lantern/labels.yaml)
+and [`lantern/theme.yaml`](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/lantern/theme.yaml). Leave those as they are;
+three keys of `plots.yaml` override their entries instead:
 
-A series in `plots.yaml` is `kind.attribute`, e.g. `fleet.newbuilds`. What
-can be plotted is what the results file holds: Navigate's reference manual
-lists every series in that form, with its unit and keys, under
-[Results file: Results](https://zerocarbonshipping.github.io/navigate-zcs/staging/reference_manual/results_file.html#results).
+| Key | Overrides |
+|---|---|
+| `customize_runs` | a run's display name and colour, by its name within its file |
+| `labels` | a label's display name and colour, or adds a label; by the label, such as `OIL` or `ferry` |
+| `theme` | swatches by colour name, and the palette or the font as a whole |
 
-The split is deliberate: `plots.yaml` says *what* is plotted and nothing
-about looks, apart from the overrides; `labels.yaml` says what the series are
-called and in which order and colour name they come; `theme.yaml` says what a
-colour name is.
+```yaml
+customize_runs:
+  basecase_mid_regulation: {name: Mid regulation, color: blue_5}
+labels:
+  OIL: {color: black_4}
+theme:
+  font: {family: Arial, weight: 300}
+```
 
-Lantern checks all three at start and on Refresh and stops at a mistake with
-the file and line, the plot or the label; the
-[rules of thumb](configs/README.md#rules-of-thumb) list what it checks.
+A colour is a colour name of the theme, such as `blue_5`, or a hex value; see
+[Labels and theme](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/configs/README.md#labels-and-theme).
+
+Lantern checks the configuration at start and on Refresh and stops at a
+mistake with the file and line, the plot or the label; the
+[rules of thumb](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/configs/README.md#rules-of-thumb) list what it checks.
 
 
 ## Contributing
 
 Lantern follows Navigate's
-[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CONTRIBUTING.md#horizon-and-lantern) and
-[code style](https://github.com/zerocarbonshipping/navigate-zcs/blob/dev/CODESTYLE.md): pull requests target `dev`, and
+[contributing guide](https://github.com/zerocarbonshipping/navigate-zcs/blob/main/CONTRIBUTING.md#horizon-and-lantern) and
+[code style](https://github.com/zerocarbonshipping/navigate-zcs/blob/main/CODESTYLE.md): pull requests target `dev`, and
 `CHANGELOG.md` records what a user would notice. Set up and check a change with:
 
 ```bash
@@ -136,4 +151,4 @@ judgement when interpreting any outputs.
 
 Copyright 2026 Fonden Mærsk Mc-Kinney Møller Center for Zero Carbon Shipping.
 
-Lantern is licensed under the [Apache License 2.0](LICENSE).
+Lantern is licensed under the [Apache License 2.0](https://github.com/zerocarbonshipping/lantern-zcs/blob/main/LICENSE).
