@@ -33,7 +33,7 @@ describes it. The entries below are the changes since the rewrite was merged
 - Theme buttons on the page: System, Bright or Dark, kept in the browser.
   Dark recolours the page and the figures' background, text and grid; the
   series keep their colours.
-- The repository's `plots.yaml` has WTW emissions by fuel and the trade of
+- The repository's `plots.yaml` has WTW emissions by gas and the trade of
   each fleet, and names the runs of Navigate's reference scenarios.
 
 ### Changed

@@ -36,9 +36,9 @@ main:
     total: true
     series: global.intensity_total_equivalent_wtw
 
-  # summed over the gases
-  emission_by_fuel:
-    title: WTW emissions by fuel
+  # one line per gas: Navigate keeps no emissions per fuel
+  emission_by_gas:
+    title: WTW emissions by gas
     variants: [lines, stack]
     draw: stack
     series: global.equivalent_wtw
@@ -111,12 +111,8 @@ main:
   feedstock_consumption:
     title: Feed consumption
     select_view: key1
-    layers:
-      - series: global.feed_mass
-        total: true
-      - series: global.feed_constraint
-        total: true
-        line: dash
+    total: true
+    series: global.feed_mass
 
   fuel_related_expenses:
     title: Fuel expenses
