@@ -6,7 +6,9 @@ and the project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 <!-- What gets an entry: Navigate's CONTRIBUTING.md, Changelog. -->
 
-## [2.0.0] - Unreleased
+## [2.0.0] - 2026-11-30
+
+Reads results schema 1 and study schema 1.
 
 Lantern 2 is a rewrite: a local web app that plots the Parquet results files
 Navigate 1.1 and later write, of one run or many, a Horizon 2 study included,
