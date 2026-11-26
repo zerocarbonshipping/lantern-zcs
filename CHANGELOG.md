@@ -25,6 +25,9 @@ describes it. The entries below are the changes since the rewrite was merged
   at start Lantern prints which `plots.yaml` it reads.
 - `per: kind.attribute` divides a plot by another series of the run, such as
   expenses per cargo-mile. (#7)
+- `{currency}` in a plot's `unit` is the currency of its first series. The
+  catalogue's plots that set a unit in USD use it, so they label a run in
+  another currency in that currency. (#8)
 - A button in a figure's toolbar shares one y axis across its panels, so
   they compare on one scale, and gives each its own again.
 - Theme buttons on the page: System, Bright or Dark, kept in the browser.

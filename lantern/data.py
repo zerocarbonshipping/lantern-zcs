@@ -299,13 +299,15 @@ def _prepare(plot: Plot, runs: Runs) -> pl.DataFrame:
 
 
 def unit(plot: Plot, units: dict[str, str]) -> str:
-    """Return the y unit of a plot: its own, else that of the first attribute it names."""
-    if plot.unit is not None:
-        return plot.unit
-
+    """Return the y unit of a plot: that of its first series, or its own with {currency} the currency of that one."""
     _, attribute = plot.layers[0].series[0]
+    first = units.get(attribute, "")
 
-    return units.get(attribute, "")
+    if plot.unit is None:
+        return first
+
+    # Navigate writes money in the deck's currency, ahead of the slash: EUR of EUR/t
+    return plot.unit.replace("{currency}", first.partition("/")[0])
 
 
 def _select(runs: Runs, series: tuple[tuple[str, str], ...]) -> pl.DataFrame:
