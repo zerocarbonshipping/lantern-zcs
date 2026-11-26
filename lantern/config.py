@@ -226,13 +226,19 @@ def _labels(override: object) -> list[tuple[str, dict[str, str]]]:
 
 
 def _read(text: str, name: str) -> dict[str, Any]:
-    node = yaml.compose(text)
+    """Return the entries of a YAML file's text, name its path; a YAML syntax error names the file and line."""
+    try:
+        node = yaml.compose(text)
+        content = yaml.safe_load(text)
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        line = f", line {mark.line + 1}" if mark else ""
+        raise ConfigError(f"{name}{line}: {getattr(error, 'problem', None) or error}") from None
 
     if node is None:
         return {}
 
     _check_text(node, name)
-    content = yaml.safe_load(text)
 
     if not isinstance(content, dict):
         raise ConfigError(f"{name} must map keys to entries")
